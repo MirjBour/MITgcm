@@ -522,6 +522,7 @@ C     use sig1 as a temporary field
           DO j=1,sNy
            DO i=1,sNx
             sig1(i,j) = (1. _d 0 - damage(i,j,bi,bj))*maskInC(i,j,bi,bj)
+            IF ( AREA(i,j,bi,bj) .EQ. 0. _d 0 ) sig1(i,j) = 0. _d 0
            ENDDO
           ENDDO
           CALL DIAGNOSTICS_FILL(sig1,'SIdamage',0,1,2,bi,bj,myThid)
