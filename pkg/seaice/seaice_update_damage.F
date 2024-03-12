@@ -1066,6 +1066,10 @@ C     Update global variables
      &        * dCrit(i,j,bi,bj)
          seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
      &        * dCrit(i,j,bi,bj)
+        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
+     &         seaice_sigma1(I,J,bi,bj) = 0. _d 0
+        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
+     &         seaice_sigma2(I,J,bi,bj) = 0. _d 0
         ENDDO
        ENDDO
 
@@ -1077,6 +1081,8 @@ C     The rest is common to both methods.
 C option D2: uncoupled sig12C
         seaice_sigma12C(i,j,bi,bj) = seaice_sigma12C(i,j,bi,bj)
      &        * dCrit(i,j,bi,bj)
+        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
+     &         seaice_sigma12C(I,J,bi,bj) = 0. _d 0
        ENDDO
       ENDDO
       DO j=1,sNy+1
