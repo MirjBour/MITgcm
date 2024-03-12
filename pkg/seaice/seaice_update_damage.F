@@ -179,7 +179,7 @@ C     re-compute stress from most recent strain rates
 #  ifdef SEAICE_ALLOW_MEB
         IF ( SEAICEuseMEB ) THEN
          CALL SEAICE_MEB_CALC_STRESS(
-     I        e11, e22, e12, press0, damage,
+     I        e11, e22, e12, press0, damage, AREA,
      I        damageZ, press0Z, eta, etaZ, zeta, zetaZ,
      I        seaice_sigma1, seaice_sigma2, seaice_sigma12,
      I        seaice_sigma12C,
@@ -696,7 +696,7 @@ CBOP
 C     !ROUTINE: SEAICE_MEB_CALC_SIGMAP
 C     !INTERFACE:
       SUBROUTINE SEAICE_MEB_CALC_SIGMAP(
-     I     e11, e22, e12, press0, damage, dCrit,
+     I     e11, e22, e12, press0, damage, dCrit, area,
      I     damageZ, dCritZ, press0Z, eta, etaZ, zeta, zetaZ,
      U     sigPlus, sigMinus, sigma12, sigma12C,
      I     bi, bj, myTime, myIter, myThid )
@@ -724,6 +724,7 @@ C     === Routine arguments ===
 C     myTime :: Simulation time
 C     myIter :: Simulation timestep number
 C     myThid :: my Thread Id. number
+      _RL area  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL damage  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL damageZ  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL dCrit   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -764,7 +765,7 @@ CMB      CALL SEAICE_CALC_ICE_STRENGTH(
 CMB     I     bi, bj, myTime, myIter, myThid )
 C
       CALL SEAICE_MEB_CALC_STRESS(
-     I     e11, e22, e12, press0, damage,
+     I     e11, e22, e12, press0, damage, AREA,
      I     damageZ, press0Z, eta, etaZ, zeta, zetaZ,
      I     sigPlus, sigMinus, sigma12, sigma12C,
      O     sig11, sig22, sig12, sig12C,
@@ -789,7 +790,7 @@ CBOP
 C     !ROUTINE: SEAICE_MEB_CALC_STRESS
 C     !INTERFACE:
       SUBROUTINE SEAICE_MEB_CALC_STRESS(
-     I     e11, e22, e12, press0, damage,
+     I     e11, e22, e12, press0, damage, area,
      I     damageZ, press0Z, eta, etaZ, zeta, zetaZ,
      I     sigPlus, sigMinus, sigma12, sigma12C,
      O     sig11, sig22, sig12, sig12C,
@@ -819,6 +820,7 @@ C     === Routine arguments ===
 C     myTime :: Simulation time
 C     myIter :: Simulation timestep number
 C     myThid :: my Thread Id. number
+      _RL AREA  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL damage  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL damageZ  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL sigPlus (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -929,6 +931,8 @@ C Option D2: using uncoupled sigma12C
 c        sig12C(I,J) = denom(I,J)
 c     &   *(deltaTLoc*rhs12+sigma12C(I,J,bi,bj))
         sig12C(I,J) = rhs12+sigma12C(I,J,bi,bj)*denom(I,J)
+        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
+     &         sig12C(I,J) = 0. _d 0
        ENDDO
       ENDDO
       DO J=1-OLy+1,sNy+OLy-1
