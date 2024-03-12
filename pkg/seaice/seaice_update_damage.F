@@ -1059,9 +1059,9 @@ C     Update global variables
        DO j=0,sNy
         DO i=0,sNx
          seaice_sigma1(i,j,bi,bj) = seaice_sigma1(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)
+     &        * dCrit(i,j,bi,bj)* maskInC(I,J,bi,bj)
          seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)
+     &        * dCrit(i,j,bi,bj)* maskInC(I,J,bi,bj)
         ENDDO
        ENDDO
 
@@ -1072,13 +1072,15 @@ C     The rest is common to both methods.
        DO i=0,sNx
 C option D2: uncoupled sig12C
         seaice_sigma12C(i,j,bi,bj) = seaice_sigma12C(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)
+     &        * dCrit(i,j,bi,bj)* maskInC(I,J,bi,bj)
        ENDDO
       ENDDO
       DO j=1,sNy+1
        DO i=1,sNx+1
         seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &       * dCritZ(i,j,bi,bj)
+     &        *maskInC(I,J,  bi,bj)*maskInC(I-1,J,  bi,bj)
+     &        *maskInC(I,J-1,bi,bj)*maskInC(I-1,J-1,bi,bj)
        ENDDO
       ENDDO
 c      wght=1. _d 0
