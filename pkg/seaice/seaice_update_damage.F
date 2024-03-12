@@ -264,7 +264,7 @@ C Sigma-Update-Options:
 #else
           dCrit(I,J,bi,bj) = damageCrit*maskInC(I,J,bi,bj)
 #endif
-          IF ( AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+          IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
      &         damage(I,J,bi,bj) = 0. _d 0
 #ifdef ALLOW_DIAGNOSTICS
 C     just diagnostics
