@@ -264,8 +264,6 @@ C Sigma-Update-Options:
 #else
           dCrit(I,J,bi,bj) = damageCrit*maskInC(I,J,bi,bj)
 #endif
-          IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
-     &         damage(I,J,bi,bj) = 0. _d 0
 #ifdef ALLOW_DIAGNOSTICS
 C     just diagnostics
 C     hack to save principle stress before updating sigma
@@ -334,9 +332,7 @@ C option B3: never update dcrit
 c          dCritZ(I,J,bi,bj) = 1. _d 0
 C Option DoubleParameters
           dCritZ(I,J,bi,bj) = fldAtZ(dCrit(:,:,bi,bj),I,J,bi,bj)
-c          dCritZ(I,J,bi,bj) = 1. _d 0
           damageZ(I,J,bi,bj) = fldAtZ(damage(:,:,bi,bj),I,J,bi,bj)
-c          dCrit(I,J,bi,bj) = damageZ(I,J,bi,bj)
 C     make sure that 0 < damage <=1
           damageZ(I,J,bi,bj) = MIN(1. _d 0, damageZ(I,J,bi,bj))
           damageZ(I,J,bi,bj) = MAX(0. _d 0, damageZ(I,J,bi,bj))
@@ -649,7 +645,7 @@ C     (1 + dt*Elasiticy/viscosity)
      &       ( sigPlus(I,J,bi,bj)+sigMinus(I,J,bi,bj) )
         sig22(I,J) = 0.5 _d 0 * denom(I,J) *
      &       ( sigPlus(I,J,bi,bj)-sigMinus(I,J,bi,bj) )
-       ENDDO
+        ENDDO
       ENDDO
       DO J=1,sNy+1
        DO I=1,sNx+1
@@ -661,7 +657,6 @@ C        sig12(I,J) = sigma12(I,J,bi,bj)
 C     &       /(1. _d 0+deltaTloc*fldAtZ(recip_rlx,i,j,bi,bj))
 C Option DoupleParameters
          sig12(I,J) = sigma12(I,J,bi,bj)*denomZ(I,J)
-c         sig12(I,J) = sigma12(I,J,bi,bj)*fldAtZ(denomZ,I,J,bi,bj)
        ENDDO
       ENDDO
       IF (.NOT.SEAICE_no_slip) THEN
@@ -775,12 +770,12 @@ C
        DO I=0,sNx
         sigPlus (I,J,bi,bj) = sig11(I,J) + sig22(I,J)
         sigMinus(I,J,bi,bj) = sig11(I,J) - sig22(I,J)
-        sigma12C(I,J,bi,bj) = sig12C(I,J)
+        sigma12C(I,J,bi,bj) = sig12C(I,J) 
        ENDDO
       ENDDO
       DO J=1,sNy+1
        DO I=1,sNx+1
-        sigma12(I,J,bi,bj) = sig12(I,J)
+        sigma12(I,J,bi,bj) = sig12(I,J)        
        ENDDO
       ENDDO
       RETURN
@@ -918,11 +913,13 @@ c     &       * (sigMinus(I,J,bi,bj)+deltaTloc*2.* etaLoc*em)*denom(I,J)
 C     recover sigma11 and sigma22
         sig11(I,J) = 0.5 _d 0 * ( sigp+sigm )
         sig22(I,J) = 0.5 _d 0 * ( sigp-sigm )
+C To make sure there are no stress values on water grid cells
+        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+     &         sig11(I,J) = 0. _d 0
+        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+     &         sig22(I,J) = 0. _d 0
 CMB   averaging
         rhs12 = 2. * eta(I,J,bi,bj) * fldAtC(e12(:,:,bi,bj),i,j,bi,bj)
-!!!-> lines
-c        rhs12 = 2.*fldAtC(e12(:,:,bi,bj)*etaZ(:,:,bi,bj),i,j,bi,bj)
-c        rhs12 = 2.*fldAtC(e12(:,:,bi,bj),i,j,bi,bj)
 C Calc-Stress-Options D1/D2
 C Option D1: averaging sigma12
 c        sig12C(I,J) = denom(I,J) * ( deltaTLoc*rhs12 +
@@ -931,7 +928,7 @@ C Option D2: using uncoupled sigma12C
 c        sig12C(I,J) = denom(I,J)
 c     &   *(deltaTLoc*rhs12+sigma12C(I,J,bi,bj))
         sig12C(I,J) = rhs12+sigma12C(I,J,bi,bj)*denom(I,J)
-        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
+        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
      &         sig12C(I,J) = 0. _d 0
        ENDDO
       ENDDO
@@ -954,7 +951,7 @@ CML        denom_z = 1. _d 0
 CML     &       /(1. _d 0+deltaTloc*fldAtZ(recip_rlx,i,j,bi,bj))
 C        sig12(I,J) = (sigma12(I,J,bi,bj)+deltaTLoc*rhs12)*denom_z
 C Option DoubleParameters
-        sig12(I,J) = denomZ(I,J) * sigma12(I,J,bi,bj)+ rhs12
+        sig12(I,J) = denomZ(I,J) * sigma12(I,J,bi,bj)+ rhs12  
        ENDDO
       ENDDO
       IF (.NOT.SEAICE_no_slip) THEN
@@ -1025,7 +1022,6 @@ C                     sig11 and sig22, i.e. seaice_sigma1/2)
       INTEGER i,j
       _RL sigI, sigII
       _RL cosThetaMohr
-c     _RL wght
 c     _RL fldAtC
 c     EXTERNAL fldAtC
 CEOP
@@ -1066,10 +1062,6 @@ C     Update global variables
      &        * dCrit(i,j,bi,bj)
          seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
      &        * dCrit(i,j,bi,bj)
-        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
-     &         seaice_sigma1(I,J,bi,bj) = 0. _d 0
-        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
-     &         seaice_sigma2(I,J,bi,bj) = 0. _d 0
         ENDDO
        ENDDO
 
@@ -1081,24 +1073,14 @@ C     The rest is common to both methods.
 C option D2: uncoupled sig12C
         seaice_sigma12C(i,j,bi,bj) = seaice_sigma12C(i,j,bi,bj)
      &        * dCrit(i,j,bi,bj)
-        IF ( AREA(I,J,bi,bj) .LT. 1. _d -3 )
-     &         seaice_sigma12C(I,J,bi,bj) = 0. _d 0
        ENDDO
       ENDDO
       DO j=1,sNy+1
        DO i=1,sNx+1
         seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &       * dCritZ(i,j,bi,bj)
-       ENDDO
+        ENDDO
       ENDDO
-c      wght=1. _d 0
-c      DO j=1,sNy
-c       DO i=1,sNx
-c        seaice_sigma12C(i,j,bi,bj) =
-c     &       (1. _d 0 - wght)*seaice_sigma12C(i,j,bi,bj)
-c     &       + wght * fldAtC(seaice_sigma12(:,:,bi,bj),i,j,bi,bj)
-c       ENDDO
-c      ENDDO
 # endif /* SEAICE_ALLOW_DAMAGE */
 #endif /* SEAICE_ALLOW_DYNAMICS and SEAICE_CGRID */
 
