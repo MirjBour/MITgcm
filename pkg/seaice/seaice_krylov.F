@@ -435,7 +435,7 @@ C     with the damage, this time return result in global fields
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
          CALL SEAICE_MEB_CALC_SIGMAP(
-     I        e11, e22, e12, press0, damage, dCrit,
+     I        e11, e22, e12, press0, damage, dCrit, AREA,
      I        damageZ, dCritZ, press0Z, eta, etaZ, zeta, zetaZ,
      U        seaice_sigma1, seaice_sigma2, seaice_sigma12,
      U        seaice_sigma12C,

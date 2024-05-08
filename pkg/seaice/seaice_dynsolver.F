@@ -522,6 +522,7 @@ C     use sig1 as a temporary field
           DO j=1,sNy
            DO i=1,sNx
             sig1(i,j) = (1. _d 0 - damage(i,j,bi,bj))*maskInC(i,j,bi,bj)
+            IF ( AREA(i,j,bi,bj) .EQ. 0. _d 0 ) sig1(i,j) = 0. _d 0
            ENDDO
           ENDDO
           CALL DIAGNOSTICS_FILL(sig1,'SIdamage',0,1,2,bi,bj,myThid)
@@ -629,6 +630,10 @@ C     PRESS = PRESS(n-1), n = number of sub-cycling steps
      &            + seaice_sigma12(i+1,j  ,bi,bj)
      &            + seaice_sigma12(i+1,j+1,bi,bj)
      &            + seaice_sigma12(i  ,j+1,bi,bj) )
+C Important because sig12 values end up on water grid cells by
+C averaging.
+             IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+     &         sig12(i,j) = 0. _d 0
              sigTmp = SQRT( sigm*sigm + 4. _d 0*sig12(i,j)*sig12(i,j) )
              recip_prs = 0. _d 0
 c             IF ( SEAICEuseMEB) THEN
@@ -641,6 +646,7 @@ c             ENDIF
              sig2(i,j) = 0.5 _d 0*(sigp - sigTmp)*recip_prs
              sig11(i,j) = 0.5 _d 0*(sigp+sigm)
              sig22(i,j) = 0.5 _d 0*(sigp-sigm)
+C Careful now I write sig12 on Z points!
 CMB             sig11(i,j) = sigp
 CMB             sig22(i,j) = sigm
             ENDDO
