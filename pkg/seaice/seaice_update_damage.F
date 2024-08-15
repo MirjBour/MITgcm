@@ -264,6 +264,8 @@ C Sigma-Update-Options:
 #else
           dCrit(I,J,bi,bj) = damageCrit*maskInC(I,J,bi,bj)
 #endif
+          IF ( AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+     &         damage(I,J,bi,bj) = 0. _d 0
 #ifdef ALLOW_DIAGNOSTICS
 C     just diagnostics
 C     hack to save principle stress before updating sigma
@@ -388,7 +390,7 @@ CEOP
 CBOP
 C     !ROUTINE: MC_FAILURE_INV
 C     !INTERFACE:
-      _RL FUNCTION MC_FAILURE_INV ( sigI, sigII, intFrictCoeff, chsn, 
+      _RL FUNCTION MC_FAILURE_INV ( sigI, sigII, intFrictCoeff, chsn,
      &     damageCrit )
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
@@ -645,7 +647,7 @@ C     (1 + dt*Elasiticy/viscosity)
      &       ( sigPlus(I,J,bi,bj)+sigMinus(I,J,bi,bj) )
         sig22(I,J) = 0.5 _d 0 * denom(I,J) *
      &       ( sigPlus(I,J,bi,bj)-sigMinus(I,J,bi,bj) )
-        ENDDO
+       ENDDO
       ENDDO
       DO J=1,sNy+1
        DO I=1,sNx+1
@@ -770,12 +772,12 @@ C
        DO I=0,sNx
         sigPlus (I,J,bi,bj) = sig11(I,J) + sig22(I,J)
         sigMinus(I,J,bi,bj) = sig11(I,J) - sig22(I,J)
-        sigma12C(I,J,bi,bj) = sig12C(I,J) 
+        sigma12C(I,J,bi,bj) = sig12C(I,J)
        ENDDO
       ENDDO
       DO J=1,sNy+1
        DO I=1,sNx+1
-        sigma12(I,J,bi,bj) = sig12(I,J)        
+        sigma12(I,J,bi,bj) = sig12(I,J)
        ENDDO
       ENDDO
       RETURN
@@ -951,7 +953,7 @@ CML        denom_z = 1. _d 0
 CML     &       /(1. _d 0+deltaTloc*fldAtZ(recip_rlx,i,j,bi,bj))
 C        sig12(I,J) = (sigma12(I,J,bi,bj)+deltaTLoc*rhs12)*denom_z
 C Option DoubleParameters
-        sig12(I,J) = denomZ(I,J) * sigma12(I,J,bi,bj)+ rhs12  
+        sig12(I,J) = denomZ(I,J) * sigma12(I,J,bi,bj)+ rhs12
        ENDDO
       ENDDO
       IF (.NOT.SEAICE_no_slip) THEN
@@ -1079,7 +1081,7 @@ C option D2: uncoupled sig12C
        DO i=1,sNx+1
         seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &       * dCritZ(i,j,bi,bj)
-        ENDDO
+       ENDDO
       ENDDO
 # endif /* SEAICE_ALLOW_DAMAGE */
 #endif /* SEAICE_ALLOW_DYNAMICS and SEAICE_CGRID */
