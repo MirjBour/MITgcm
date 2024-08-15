@@ -916,10 +916,10 @@ C     recover sigma11 and sigma22
         sig11(I,J) = 0.5 _d 0 * ( sigp+sigm )
         sig22(I,J) = 0.5 _d 0 * ( sigp-sigm )
 C To make sure there are no stress values on water grid cells
-        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-     &         sig11(I,J) = 0. _d 0
-        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-     &         sig22(I,J) = 0. _d 0
+CMB        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+CMB     &         sig11(I,J) = 0. _d 0
+CMB        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+CMB     &         sig22(I,J) = 0. _d 0
 CMB   averaging
         rhs12 = 2. * eta(I,J,bi,bj) * fldAtC(e12(:,:,bi,bj),i,j,bi,bj)
 C Calc-Stress-Options D1/D2
@@ -930,8 +930,8 @@ C Option D2: using uncoupled sigma12C
 c        sig12C(I,J) = denom(I,J)
 c     &   *(deltaTLoc*rhs12+sigma12C(I,J,bi,bj))
         sig12C(I,J) = rhs12+sigma12C(I,J,bi,bj)*denom(I,J)
-        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-     &         sig12C(I,J) = 0. _d 0
+CMB        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+CMB     &         sig12C(I,J) = 0. _d 0
        ENDDO
       ENDDO
       DO J=1-OLy+1,sNy+OLy-1
@@ -1061,9 +1061,11 @@ C     Update global variables
        DO j=0,sNy
         DO i=0,sNx
          seaice_sigma1(i,j,bi,bj) = seaice_sigma1(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)* maskInC(I,J,bi,bj)
+     &        * dCrit(i,j,bi,bj)
+CMB * maskInC(I,J,bi,bj)
          seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)* maskInC(I,J,bi,bj)
+     &        * dCrit(i,j,bi,bj)
+CMB * maskInC(I,J,bi,bj)
         ENDDO
        ENDDO
 
@@ -1074,7 +1076,8 @@ C     The rest is common to both methods.
        DO i=0,sNx
 C option D2: uncoupled sig12C
         seaice_sigma12C(i,j,bi,bj) = seaice_sigma12C(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)* maskInC(I,J,bi,bj)
+     &        * dCrit(i,j,bi,bj)
+CMB * maskInC(I,J,bi,bj)
        ENDDO
       ENDDO
       DO j=1,sNy+1
