@@ -164,16 +164,6 @@ C
           dCritZ(I,J,bi,bj) = 1. _d 0
          ENDDO
         ENDDO
-CMLC     need to update damageZ from previous timestep
-CMLC     after advection of damage?
-CML        DO j=1,sNy+1
-CML         DO i=1,sNx+1
-CML          damageZ(I,J,bi,bj) = fldAtZ(damage(:,:,bi,bj),I,J,bi,bj)
-CMLC     make sure that 0 < damage <=1
-CML          damageZ(I,J,bi,bj) = MIN(1. _d 0, damageZ(I,J,bi,bj))
-CML          damageZ(I,J,bi,bj) = MAX(0. _d 0, damageZ(I,J,bi,bj))
-CML         ENDDO
-CML        ENDDO
 
 C     re-compute stress from most recent strain rates
 #  ifdef SEAICE_ALLOW_MEB
@@ -447,12 +437,6 @@ C Option-G1: simple mean on C-Points
      &     + fldIn(I-1,J  )*maskInC(I-1,J,  bi,bj)
      &     + fldIn(I,  J-1)*maskInC(I  ,J-1,bi,bj)
      &     + fldIn(I-1,J-1)*maskInC(I-1,J-1,bi,bj) )
-C Option-G2: quadratic mean on C-Points
-c      fldAtZ = SQRT (sumNorm *
-c     &     ( (fldIn(I,  J  )*maskInC(I,  J,  bi,bj))**2
-c     &     + (fldIn(I-1,J  )*maskInC(I-1,J,  bi,bj))**2
-c     &     + (fldIn(I,  J-1)*maskInC(I  ,J-1,bi,bj))**2
-c     &     + (fldIn(I-1,J-1)*maskInC(I-1,J-1,bi,bj))**2 ))
 C
       RETURN
       END
@@ -469,13 +453,6 @@ CEOP
       _RL sumNorm
 C
       sumNorm  = 0.25 _d 0
-C Option-G3: simple mean on Z-Points
-c      fldAtC = (sumNorm * recip_rA(I,J,bi,bj) *
-c     &     ( rAz(I,  J,  bi,bj)*fldIn(I,  J  )
-c     &     + rAz(I+1,J,  bi,bj)*fldIn(I+1,J  )
-c     &     + rAz(I,  J+1,bi,bj)*fldIn(I,  J+1)
-c     &     + rAz(I+1,J+1,bi,bj)*fldIn(I+1,J+1)
-c     &     ) ) * maskInC(I,J,bi,bj)
 C Option-G4: quadratic mean on C-Points
       fldAtC = SQRT( sumNorm * recip_rA(I,J,bi,bj) *
      &     ( rAz(I,  J,  bi,bj)*fldIn(I,  J  )**2
@@ -915,11 +892,6 @@ c     &       * (sigMinus(I,J,bi,bj)+deltaTloc*2.* etaLoc*em)*denom(I,J)
 C     recover sigma11 and sigma22
         sig11(I,J) = 0.5 _d 0 * ( sigp+sigm )
         sig22(I,J) = 0.5 _d 0 * ( sigp-sigm )
-C To make sure there are no stress values on water grid cells
-CMB        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-CMB     &         sig11(I,J) = 0. _d 0
-CMB        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-CMB     &         sig22(I,J) = 0. _d 0
 CMB   averaging
         rhs12 = 2. * eta(I,J,bi,bj) * fldAtC(e12(:,:,bi,bj),i,j,bi,bj)
 C Calc-Stress-Options D1/D2
@@ -930,8 +902,6 @@ C Option D2: using uncoupled sigma12C
 c        sig12C(I,J) = denom(I,J)
 c     &   *(deltaTLoc*rhs12+sigma12C(I,J,bi,bj))
         sig12C(I,J) = rhs12+sigma12C(I,J,bi,bj)*denom(I,J)
-CMB        IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-CMB     &         sig12C(I,J) = 0. _d 0
        ENDDO
       ENDDO
       DO J=1-OLy+1,sNy+OLy-1

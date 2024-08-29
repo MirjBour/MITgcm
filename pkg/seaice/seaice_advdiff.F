@@ -520,16 +520,6 @@ C advect sigma_12 by averaging the tendency for sigma12C to Z-points
           DO i=1,sNx+1
            seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &          + SEAICE_deltaTtherm * fldAtZ(gFld,i,j,bi,bj)
-CML           seaice_sigma12(i,j,bi,bj)=fldAtZ(
-CML     &        seaice_sigma12C(:,:,bi,bj),i,j,bi,bj)
-CML           sumNorm  = maskInC(i,j,  bi,bj)+maskInC(i-1,j,  bi,bj)
-CML     &          +     maskInC(i,j-1,bi,bj)+maskInC(i-1,j-1,bi,bj)
-CML           IF ( sumNorm.GT.0. _d 0 ) sumNorm = 1. _d 0 / sumNorm
-CMLCML           seaice_sigma12(i,j,bi,bj) = SQRT (sumNorm *
-CML           seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
-CML     &          + SEAICE_deltaTtherm * SQRT (sumNorm *
-CML     &          ( gFld1(i,  j  )**2 + gFld1(i-1,j  )**2
-CML     &          + gFld1(i,  j-1)**2 + gFld1(i-1,j-1)**2 ))
           ENDDO
          ENDDO
         ENDIF
