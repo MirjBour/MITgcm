@@ -159,12 +159,14 @@ C     according to our convention (this is different from Dansereau et al 2016)
 CML     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
 C     tensile strength cutoff
           sigmaT(I,J) = - sigmaC(I,J)*recip_q
-C
+          IF ( I .EQ. 50 .AND. J .EQ. 50) THEN 
+CMB           PRINT *, SEAICEmohrCoulombSlope, "Slope-Inv"
+CMB           PRINT *, SEAICEintFrictCoeff, "Slope-Prin" 
+          ENDIF   
           dCrit(I,J,bi,bj)  = 1. _d 0*maskInC(I,J,bi,bj)
           dCritZ(I,J,bi,bj) = 1. _d 0
          ENDDO
         ENDDO
-
 C     re-compute stress from most recent strain rates
 #  ifdef SEAICE_ALLOW_MEB
         IF ( SEAICEuseMEB ) THEN
@@ -208,9 +210,8 @@ C     The tensile failure criterion switch sig1 and sig2 with respect to
 C     Dansereau et al (2016) so that for sig1>0, sig2>sigmaT
 CML          IF ( SEAICEuseTensileCutoff .AND.
 CML     &         sig1 .GT. 0. _d 0 .AND. sig2 .GT. sigmaT(I,J) )
-C          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)D
-C          damageCrit = TENSILE_FAILURE(sig2,sig1,sigmaT(I,J),damageCrit)
-c          PRINT *, "MB-Sig", i,j,sig1, sig2, sigmaT(I,J), sigmaC(I,J)
+CMB          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)D
+CMB          damageCrit = TENSILE_FAILURE(sig2,sig1,sigmaT(I,J),damageCrit)
           IF ( SEAICEmebNormCorr .AND.
      &         sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
            damageCrit = MC_NORM_FAILURE(sigI, sigII,
@@ -220,14 +221,15 @@ c          PRINT *, "MB-Sig", i,j,sig1, sig2, sigmaT(I,J), sigmaC(I,J)
 C     keep in mind that sigmaC < 0 so that the following criterion catches
 C     the case when sig2 is below sigmaC+q*sig1
 CMB           damageCrit = MC_FAILURE(sig1,sig2,q,sigmaC(I,J),damageCrit)
-           damageCrit = MC_FAILURE_INV(sigI,sigII,SEAICEintFrictCoeff,
-     &            cohesion(i,j,bi,bj)*HEFF(i,j,bi,bj),damageCrit)
 C     or above sigmaC+q*sig2
-C           damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
+CMB           damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
+C     should be used to compare with Plante et. al (2019)
+           damageCrit =MC_FAILURE_INV(sigI,sigII,SEAICEmohrCoulombSlope,
+     &          SEAICEintFrictCoeff,cohesion(i,j,bi,bj)*HEFF(i,j,bi,bj),
+     &          damageCrit)
           ENDIF
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
           damageCrit = MAX(damageCrit, 0. _d 0)
-c         PRINT *, damageCrit
 C Damage-Options:
 C Option A1: Damage    explicit and for dt< damagetime:
           damage(I,J,bi,bj) = damageNm1(I,J,bi,bj) *
@@ -373,24 +375,29 @@ CEOP
       denom = sig2 - q*sig1
       mc_failure = damageCrit
       IF ( denom .NE. 0. _d 0 ) THEN
-       IF ( denom .LT. sigC ) mc_failure = MIN(damageCrit,sigC/denom)
+       IF ( denom .LT. sigC ) THEN 
+        mc_failure = MIN(damageCrit,sigC/denom)
+        ENDIF
       ENDIF
       RETURN
       END
 CBOP
 C     !ROUTINE: MC_FAILURE_INV
 C     !INTERFACE:
-      _RL FUNCTION MC_FAILURE_INV ( sigI, sigII, intFrictCoeff, chsn,
-     &     damageCrit )
+      _RL FUNCTION MC_FAILURE_INV ( sigI, sigII, slope, frict,
+     &     chsn, damageCrit )
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
-      _RL sigI, sigII, intFrictCoeff, chsn, damageCrit
+      _RL sigI, sigII, slope, frict, chsn, damageCrit
 CEOP
       _RL denom
-      denom = sigII + intFrictCoeff*sigI
+      denom = sigII + slope*sigI
       mc_failure_inv = damageCrit
+      chsn = chsn / SQRT(frict*frict +1)
       IF ( denom .NE. 0. _d 0 ) THEN
-       IF ( denom .GT. chsn ) mc_failure_inv =MIN(damageCrit,chsn/denom)
+       IF ( denom .GT. chsn ) THEN
+        mc_failure_inv = MIN(damageCrit,chsn/denom)
+        ENDIF
       ENDIF
       RETURN
       END
