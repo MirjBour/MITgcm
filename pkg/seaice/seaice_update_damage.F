@@ -412,10 +412,12 @@ C     following Plante and Tremblay (2021)
 C     chsn :: cohesion
       _RL sigI, sigII, chsn, intFrictCoeff, tanThetaCorr, damageCrit
 CEOP
-      _RL denom, num
+      _RL denom, num, slope
 C
-      num = chsn + intFrictCoeff * ( sigII*tanThetaCorr - sigI )
-      denom = (1. _d 0 + intFrictCoeff*tanThetaCorr)*sigII
+      chsn = chsn / SQRT(intFrictCoeff*intFrictCoeff +1)
+      slope = intFrictCoeff / SQRT(intFrictCoeff*intFrictCoeff +1)
+      num = chsn + slope * ( sigII*tanThetaCorr - sigI )
+      denom = (1. _d 0 + slope*tanThetaCorr)*sigII
       mc_norm_failure = damageCrit
       IF ( denom .NE. 0. _d 0 ) THEN
        mc_norm_failure = MIN(damageCrit, num/denom)
