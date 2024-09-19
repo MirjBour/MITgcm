@@ -315,8 +315,6 @@ CADJ STORE heff(:,:,bi,bj)  = comlev1_bibj, key = iicekey,byte=isbyte
         ENDDO
 #endif /* SEAICE_VARIABLE_SALINITY */
 
-#endif /* SEAICE_ALLOW_DAMAGE */
-
 #ifdef SEAICE_ALLOW_MEB
         DO j = 1-Oly,sNy+Oly
          DO i = 1-Olx,sNx+Olx
