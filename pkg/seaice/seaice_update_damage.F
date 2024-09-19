@@ -92,13 +92,14 @@ C     betaFacU/V     :: analog betaFacP1U/V
       INTEGER i, j, bi, bj
 
       _RL deltaTloc
-      _RL q, recip_q, sqrtq
+      _RL q, recip_q, sqrtq, q_inv
       _RL damageCrit
       _RL recip_healingTime, recip_damageTime
       _RL sig1, sig2, sigTmp, sigp, sigm, sigI, sigII
 
       _RL sigmaT(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sigmaC(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+      _RL c_inv(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sig11 (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sig22 (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sig12 (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
@@ -111,7 +112,6 @@ C     betaFacU/V     :: analog betaFacP1U/V
       _RL MC_NORM_FAILURE
       EXTERNAL fldAtZ, fldAtC
       EXTERNAL TENSILE_FAILURE
- 
       EXTERNAL MC_FAILURE
       EXTERNAL MC_FAILURE_INV
       EXTERNAL MC_NORM_FAILURE
@@ -139,9 +139,11 @@ C     parameters
      &     recip_damageTime  = 1. _d 0/SEAICEdamageTime
 C     slope of the Mohr-Coulomb-envelope in principle stress plane
       sqrtq = SQRT(SEAICEintFrictCoeff**2 + 1) + SEAICEintFrictCoeff
-C     sqrtq = SQRT(0.5*SEAICEmohrCoulombSlope/(1.-SEAICEmohrCoulombSlope**2)
       q = sqrtq**2
       recip_q = 1. _d 0 / q
+C     slope of the Mohr-Coulomb-envelope in invariant stress plane
+C     SEAICEmohrCoulombSlope = frict / SQRT(frict**2 +1)
+      q_inv = SEAICEmohrCoulombSlope
 C     compute latest strain rates
       CALL SEAICE_CALC_STRAINRATES(
      I     uIce, vIce,
@@ -155,14 +157,15 @@ C
 C     uniaxial (unconfined) compressive strength (needs to include HEFF
 C     because of our definition of stress including HEFF) is negative
 C     according to our convention (this is different from Dansereau et al 2016)
+C     in principle stress state 
           sigmaC(I,J) = - 2.*cohesion(I,J,bi,bj)*sqrtq*HEFF(I,J,bi,bj)
 CML     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
 C     tensile strength cutoff
-          sigmaT(I,J) = - sigmaC(I,J)*recip_q
-          IF ( I .EQ. 50 .AND. J .EQ. 50) THEN 
-CMB           PRINT *, SEAICEmohrCoulombSlope, "Slope-Inv"
-CMB           PRINT *, SEAICEintFrictCoeff, "Slope-Prin" 
-          ENDIF   
+          sigmaT(I,J) = - sigmaC(I,J)*recip_q  
+C     in invariant stress state 
+          c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
+     &      SQRT(SEAICEintFrictCoeff**2 + 1)
+C
           dCrit(I,J,bi,bj)  = 1. _d 0*maskInC(I,J,bi,bj)
           dCritZ(I,J,bi,bj) = 1. _d 0
          ENDDO
@@ -210,13 +213,12 @@ C     The tensile failure criterion switch sig1 and sig2 with respect to
 C     Dansereau et al (2016) so that for sig1>0, sig2>sigmaT
 CML          IF ( SEAICEuseTensileCutoff .AND.
 CML     &         sig1 .GT. 0. _d 0 .AND. sig2 .GT. sigmaT(I,J) )
-CMB          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)D
+CMB          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)
 CMB          damageCrit = TENSILE_FAILURE(sig2,sig1,sigmaT(I,J),damageCrit)
           IF ( SEAICEmebNormCorr .AND.
      &         sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
-           damageCrit = MC_NORM_FAILURE(sigI, sigII,
-     &          cohesion(i,j,bi,bj)*HEFF(i,j,bi,bj),
-     &          SEAICEintFrictCoeff, SEAICEtanThetaCorr, damageCrit)
+           damageCrit = MC_NORM_FAILURE(sigI, sigII, q_inv, c_inv(I,J),
+     &          SEAICEtanThetaCorr, damageCrit)
           ELSE
 C     keep in mind that sigmaC < 0 so that the following criterion catches
 C     the case when sig2 is below sigmaC+q*sig1
@@ -224,8 +226,7 @@ CMB           damageCrit = MC_FAILURE(sig1,sig2,q,sigmaC(I,J),damageCrit)
 C     or above sigmaC+q*sig2
 CMB           damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
 C     should be used to compare with Plante et. al (2019)
-           damageCrit =MC_FAILURE_INV(sigI,sigII,SEAICEmohrCoulombSlope,
-     &          SEAICEintFrictCoeff,cohesion(i,j,bi,bj)*HEFF(i,j,bi,bj),
+           damageCrit =MC_FAILURE_INV(sigI, sigII, q_inv, c_inv(I,J),
      &          damageCrit)
           ENDIF
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
@@ -384,16 +385,14 @@ CEOP
 CBOP
 C     !ROUTINE: MC_FAILURE_INV
 C     !INTERFACE:
-      _RL FUNCTION MC_FAILURE_INV ( sigI, sigII, slope, frict,
-     &     chsn, damageCrit )
+      _RL FUNCTION MC_FAILURE_INV(sigI,sigII,slope,chsn,damageCrit)
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
-      _RL sigI, sigII, slope, frict, chsn, damageCrit
+      _RL sigI, sigII, slope, chsn, damageCrit
 CEOP
       _RL denom
       denom = sigII + slope*sigI
       mc_failure_inv = damageCrit
-      chsn = chsn / SQRT(frict*frict +1)
       IF ( denom .NE. 0. _d 0 ) THEN
        IF ( denom .GT. chsn ) THEN
         mc_failure_inv = MIN(damageCrit,chsn/denom)
@@ -404,18 +403,16 @@ CEOP
 CBOP
 C     !ROUTINE: MC_NORM_FAILURE
 C     !INTERFACE:
-      _RL FUNCTION MC_NORM_FAILURE ( sigI, sigII, chsn,
-     &     intFrictCoeff, tanThetaCorr, damageCrit )
+      _RL FUNCTION MC_NORM_FAILURE ( sigI, sigII, slope, chsn,
+     &     tanThetaCorr, damageCrit )
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
 C     following Plante and Tremblay (2021)
 C     chsn :: cohesion
-      _RL sigI, sigII, chsn, intFrictCoeff, tanThetaCorr, damageCrit
+      _RL sigI, sigII, slope, chsn, tanThetaCorr, damageCrit
 CEOP
-      _RL denom, num, slope
+      _RL denom, num
 C
-      chsn = chsn / SQRT(intFrictCoeff*intFrictCoeff +1)
-      slope = intFrictCoeff / SQRT(intFrictCoeff*intFrictCoeff +1)
       num = chsn + slope * ( sigII*tanThetaCorr - sigI )
       denom = (1. _d 0 + slope*tanThetaCorr)*sigII
       mc_norm_failure = damageCrit
