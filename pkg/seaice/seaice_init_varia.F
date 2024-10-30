@@ -184,6 +184,23 @@ c "ice concentration" tracer that should remain .EQ.1.
        ENDDO
       ENDDO
 
+#ifdef SEAICE_ALLOW_NOISEFILE
+C   Read noise field
+       IF ( NoisFile .NE. ' ' ) THEN
+        CALL READ_FLD_XY_RL( NoisFile, ' ', NOISE, 0, myThid)
+        _EXCH_XY_RL(NOISE,myThid)
+        DO bj=myByLo(myThid),myByHi(myThid)
+         DO bi=myBxLo(myThid),myBxHi(myThid)
+          DO j=1-OLy,sNy+OLy
+           DO i=1-OLx,sNx+OLx
+            NOISE(i,j,bi,bj)=MAX(NOISE(i,j,bi,bj),ZERO)
+           ENDDO
+          ENDDO
+         ENDDO
+        ENDDO
+       ENDIF
+#endif
+
 #ifdef ALLOW_TIMEAVE
 C     Initialize averages to zero
       DO bj = myByLo(myThid), myByHi(myThid)
@@ -397,23 +414,6 @@ C--   Read initial snow thickness from file if available.
         ENDDO
        ENDIF
 
-#ifdef SEAICE_ALLOW_NOISEFILE
-C   Read noise field
-       IF ( NoisFile .NE. ' ' ) THEN
-        CALL READ_FLD_XY_RL( NoisFile, ' ', NOISE, 0, myThid)
-        _EXCH_XY_RL(NOISE,myThid)
-        DO bj=myByLo(myThid),myByHi(myThid)
-         DO bi=myBxLo(myThid),myBxHi(myThid)
-          DO j=1-OLy,sNy+OLy
-           DO i=1-OLx,sNx+OLx
-            NOISE(i,j,bi,bj)=MAX(NOISE(i,j,bi,bj),ZERO)
-           ENDDO
-          ENDDO
-         ENDDO
-        ENDDO
-       ENDIF
-#endif
-
 #ifdef SEAICE_ITD
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -486,7 +486,7 @@ C    &          *( 1.+cohesion(I,J,bi,bj) ) * maskC(I,J,kSrf,bi,bj)
        ENDDO
 #endif /* SEAICE_ALLOW_DAMAGE */
       ENDIF
-C end READ_PICKUP 
+C end READ_PICKUP
 
 #if (defined (ALLOW_MEAN_SFLUX_COST_CONTRIBUTION) || defined (ALLOW_SSH_GLOBMEAN_COST_CONTRIBUTION))
       DO bj=myByLo(myThid),myByHi(myThid)

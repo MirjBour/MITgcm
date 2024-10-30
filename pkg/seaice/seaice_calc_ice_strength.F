@@ -125,13 +125,17 @@ C--   now set up ice pressure and viscosities
         ENDDO
        ENDDO
 #ifdef SEAICE_ALLOW_NOISEFILE
-         IF ( SEAICEuseNoisyIceStrength) THEN
-          DO j=jMin,jMax
-           DO i=iMin,iMax          
-            PRESS0(I,J,bi,bj)= PRESS0(I,J,bi,bj)*NOISE(I,J,bi,bj)
-           ENDDO
-          ENDDO
-         ENDIF
+       IF ( SEAICEuseNoisyIceStrength) THEN
+        DO j=jMin,jMax
+         DO i=iMin,iMax
+          PRESS0(I,J,bi,bj)= PRESS0(I,J,bi,bj)*NOISE(I,J,bi,bj)
+#ifdef SEAICE_ZETA_SMOOTHREG
+C     update zMax because in this case zeta is computed from zMax
+          ZMAX(I,J,bi,bj)  = SEAICE_zetaMaxFac*PRESS0(I,J,bi,bj)
+#endif
+         ENDDO
+        ENDDO
+       ENDIF
 #endif
 #if (defined SEAICE_ALLOW_DAMAGE || defined SEAICE_ALLOW_MEB)
        DO j=1,sNy+1
