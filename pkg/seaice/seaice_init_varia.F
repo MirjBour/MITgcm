@@ -108,6 +108,16 @@ C
           seaice_sigma2 (i,j,bi,bj) = 0. _d 0
           seaice_sigma12(i,j,bi,bj) = 0. _d 0
 # endif /* SEAICE_ALLOW_EVP or SEAICE_ALLOW_MEB */
+#ifdef SEAICE_ALLOW_DAMAGE
+C     no damage means damage = 1
+           damage   (I,J,bi,bj) = 1. _d 0 * maskC(I,J,kSrf,bi,bj)
+           damageNm1(I,J,bi,bj) = damage(I,J,bi,bj)
+           damageZ  (I,J,bi,bj) = 1. _d 0
+           damageNm1Z(I,J,bi,bj)= damageZ(I,J,bi,bj)
+           dCrit    (I,J,bi,bj) = 1. _d 0
+           dCritZ   (I,J,bi,bj) = 1. _d 0
+          seaice_sigma12C   (I,J,bi,bj) = 0. _d 0
+#endif /* SEAICE_ALLOW_DAMAGE */
 #else /* SEAICE_CGRID */
           uIceC(i,j,bi,bj)   = 0. _d 0
           vIceC(i,j,bi,bj)   = 0. _d 0
@@ -173,6 +183,23 @@ c "ice concentration" tracer that should remain .EQ.1.
         ENDDO
        ENDDO
       ENDDO
+
+#ifdef SEAICE_ALLOW_NOISEFILE
+C   Read noise field
+       IF ( NoisFile .NE. ' ' ) THEN
+        CALL READ_FLD_XY_RL( NoisFile, ' ', NOISE, 0, myThid)
+        _EXCH_XY_RL(NOISE,myThid)
+        DO bj=myByLo(myThid),myByHi(myThid)
+         DO bi=myBxLo(myThid),myBxHi(myThid)
+          DO j=1-OLy,sNy+OLy
+           DO i=1-OLx,sNx+OLx
+            NOISE(i,j,bi,bj)=MAX(NOISE(i,j,bi,bj),ZERO)
+           ENDDO
+          ENDDO
+         ENDDO
+        ENDDO
+       ENDIF
+#endif
 
 #ifdef ALLOW_TIMEAVE
 C     Initialize averages to zero
@@ -387,23 +414,6 @@ C--   Read initial snow thickness from file if available.
         ENDDO
        ENDIF
 
-#ifdef SEAICE_ALLOW_NOISEFILE
-C   Read noise field
-       IF ( NoisFile .NE. ' ' ) THEN
-        CALL READ_FLD_XY_RL( NoisFile, ' ', NOISE, 0, myThid)
-        _EXCH_XY_RL(NOISE,myThid)
-        DO bj=myByLo(myThid),myByHi(myThid)
-         DO bi=myBxLo(myThid),myBxHi(myThid)
-          DO j=1-OLy,sNy+OLy
-           DO i=1-OLx,sNx+OLx
-            NOISE(i,j,bi,bj)=MAX(NOISE(i,j,bi,bj),ZERO)
-           ENDDO
-          ENDDO
-         ENDDO
-        ENDDO
-       ENDIF
-#endif
-
 #ifdef SEAICE_ITD
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -476,6 +486,7 @@ C    &          *( 1.+cohesion(I,J,bi,bj) ) * maskC(I,J,kSrf,bi,bj)
        ENDDO
 #endif /* SEAICE_ALLOW_DAMAGE */
       ENDIF
+C end READ_PICKUP
 
 #if (defined (ALLOW_MEAN_SFLUX_COST_CONTRIBUTION) || defined (ALLOW_SSH_GLOBMEAN_COST_CONTRIBUTION))
       DO bj=myByLo(myThid),myByHi(myThid)
