@@ -875,7 +875,8 @@ C     Check if all parameters are set.
 #ifdef SEAICE_ALLOW_MEB
       IF ( SEAICEuseMEB .AND. SEAICEmebNormCorr ) THEN
        IF ( SEAICEthetaCorr .EQ. UNSET_RL ) THEN
-        SEAICEtanThetaCorr = SEAICEintFrictCoeff
+C normal correction angle is chosen to correct invariant stresses               
+        SEAICEtanThetaCorr = SEAICEmohrCoulombSlope
         SEAICEthetaCorr    = ATAN( SEAICEtanThetaCorr )/deg2rad
        ELSE
         SEAICEtanThetaCorr = ATAN( SEAICEthetaCorr*deg2rad )
