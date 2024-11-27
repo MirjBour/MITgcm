@@ -371,7 +371,7 @@ C     some more output diagnostics
 C     after damage is up to date, we need to update sigma to be consistent
 C     with the damage, this time return result in global fields
       IF ( SEAICEuseMEB .AND. SEAICEuseIMEX ) THEN
-CML       CALL SEAICE_UPDATE_DAMAGE( .TRUE., myTime, myIter, myThid )
+       CALL SEAICE_UPDATE_DAMAGE( .TRUE., myTime, myIter, myThid )
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
          CALL SEAICE_MEB_CALC_SIGMAP(

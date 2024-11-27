@@ -432,6 +432,7 @@ C     end of Picard iterate
 C     after damage is up to date, we need to update sigma to be consistent
 C     with the damage, this time return result in global fields
       IF ( SEAICEuseMEB .AND. SEAICEuseIMEX ) THEN
+       CALL SEAICE_UPDATE_DAMAGE( .FALSE., myTime, myIter, myThid )
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
          CALL SEAICE_MEB_CALC_SIGMAP(

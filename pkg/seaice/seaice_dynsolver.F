@@ -621,15 +621,27 @@ C     I would like to keep it here.
 C     for EVP compute principle stress components from recent
 C     stress state and normalize with latest
 C     PRESS = PRESS(n-1), n = number of sub-cycling steps
+           IF ( SEAICEuseMEB ) THEN
+            DO j=1,sNy
+             DO i=1,sNx
+              sig12(i,j) = seaice_sigma12C(i,j,bi,bj)
+             ENDDO
+            ENDDO
+           ELSE
+            DO j=1,sNy
+             DO i=1,sNx
+              sig12(i,j) = 0.25 _d 0 *
+     &           ( seaice_sigma12(i  ,j  ,bi,bj)
+     &           + seaice_sigma12(i+1,j  ,bi,bj)
+     &           + seaice_sigma12(i+1,j+1,bi,bj)
+     &           + seaice_sigma12(i  ,j+1,bi,bj) )
+             ENDDO
+            ENDDO
+           ENDIF
            DO j=1,sNy
             DO i=1,sNx
              sigp = seaice_sigma1(i,j,bi,bj)
              sigm = seaice_sigma2(i,j,bi,bj)
-             sig12(i,j) = 0.25 _d 0 *
-     &            ( seaice_sigma12(i  ,j  ,bi,bj)
-     &            + seaice_sigma12(i+1,j  ,bi,bj)
-     &            + seaice_sigma12(i+1,j+1,bi,bj)
-     &            + seaice_sigma12(i  ,j+1,bi,bj) )
 C Important because sig12 values end up on water grid cells by
 C averaging.
              IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
