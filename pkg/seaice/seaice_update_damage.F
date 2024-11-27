@@ -257,8 +257,11 @@ C Sigma-Update-Options:
 #else
           dCrit(I,J,bi,bj) = damageCrit*maskInC(I,J,bi,bj)
 #endif
+C A way to reduce the numerical error of magnitude e-10
+C          IF (dCrit(I,J,bi,bj) .LT. 1. _d 0)
+C     &      dCrit(I,J,bi,bj)=dCrit(I,J,bi,bj)*(1. _d 0 - 1. _d -6)         
           IF ( AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-     &         damage(I,J,bi,bj) = 0. _d 0
+     &         damage(I,J,bi,bj) = 1. _d 0
 #ifdef ALLOW_DIAGNOSTICS
 C     just diagnostics
 C     hack to save principle stress before updating sigma
@@ -998,12 +1001,12 @@ C     sigI, sigII  :: stress invariants
 C     cosThetaMohr :: cosine of Mohr circle orientation (to reconstruct
 C                     sig11 and sig22, i.e. seaice_sigma1/2)
       INTEGER i,j
-      _RL sigI, sigII
-      _RL cosThetaMohr
+      _RL sigI, sigII, sigTmp, sigp, sigm
+      _RL cosThetaMohr, q_inv, temp
+      _RL c_inv(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
 c     _RL fldAtC
 c     EXTERNAL fldAtC
 CEOP
-
       cosThetaMohr = 1.
       IF ( SEAICEmebNormCorr ) THEN
        DO j=0,sNy
@@ -1062,6 +1065,25 @@ CMB * maskInC(I,J,bi,bj)
      &       * dCritZ(i,j,bi,bj)
        ENDDO
       ENDDO
+C Test to check of stress states on and under yield curve
+CMB      DO j=1,sNy
+CMB       DO i=1,sNx
+CMB         sigp   = seaice_sigma1(i,j,bi,bj)
+CMB         sigm   = seaice_sigma2(i,j,bi,bj)
+CMB         sigTmp = SQRT(sigm*sigm+4.*seaice_sigma12C(i,j,bi,bj)**2)
+CMB         sigI   = 0.5 _d 0 * sigp
+CMB         sigII  = 0.5 _d 0 * sigTmp
+CMB         q_inv = SEAICEmohrCoulombSlope
+CMB         c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
+CMB     &      SQRT(SEAICEintFrictCoeff**2 + 1)
+CMB         temp = sigII + q_inv * sigI
+CMB         IF ( dCrit(i,j,bi,bj) .LT. 1. _d 0 .AND.
+CMB     &     maskInC(i,j,bi,bj) .GT. 0. _d 0 ) THEN
+CMB          PRINT*, j, i, dCrit(i,j,bi,bj), temp, c_inv(I,J),
+CMB     &      ( temp .GT. c_inv(I,J) ) , sigI, sigII
+CMB         ENDIF
+CMB       ENDDO
+CMB      ENDDO      
 # endif /* SEAICE_ALLOW_DAMAGE */
 #endif /* SEAICE_ALLOW_DYNAMICS and SEAICE_CGRID */
 
