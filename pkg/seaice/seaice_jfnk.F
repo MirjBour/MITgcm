@@ -177,7 +177,7 @@ C     Start nonlinear Newton iteration: outer loop iteration
 C     Compute initial residual F(u), (includes computation of global
 C     variables DWATN, zeta, and eta)
 CML#ifdef SEAICE_ALLOW_DAMAGE
-CML       IF ( SEAICEuseIMEX .AND. SEAICEupdateDamage ) THEN
+CML       IF ( SEAICEupdateDamage ) THEN
 CML        CALL SEAICE_UPDATE_DAMAGE( .FALSE., myTime, myIter, myThid )
 CMLCML        WRITE(msgBuf,'(I10.10)') newtonIter + 100*myIter
 CMLCML        CALL WRITE_FLD_XY_RL('DAM.',msgBuf,damage,myIter,myThid)
@@ -370,7 +370,7 @@ C     some more output diagnostics
 #ifdef SEAICE_ALLOW_MEB
 C     after damage is up to date, we need to update sigma to be consistent
 C     with the damage, this time return result in global fields
-      IF ( SEAICEuseMEB .AND. SEAICEuseIMEX ) THEN
+      IF ( SEAICEuseMEB ) THEN
        CALL SEAICE_UPDATE_DAMAGE( .TRUE., myTime, myIter, myThid )
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -379,7 +379,7 @@ C     with the damage, this time return result in global fields
      I        damageZ, dCritZ, press0Z, eta, etaZ, zeta, zetaZ,
      U        seaice_sigma1, seaice_sigma2, seaice_sigma12,
      U        seaice_sigma12C,
-     I        bi, bj, myTime, myIter, myThid )          
+     I        bi, bj, myTime, myIter, myThid )
          CALL SEAICE_MEB_UPDATE_SIGMA(
      I        bi, bj, myTime, myIter, myThid )
         ENDDO
@@ -639,7 +639,7 @@ C     Increment counter
 C     This is the new residual
       JFNKresidual = resLoc
 #ifdef SEAICE_ALLOW_DAMAGE
-      IF ( SEAICEupdateDamage .AND. SEAICEuseIMEX ) THEN
+      IF ( SEAICEupdateDamage ) THEN
        CALL SEAICE_UPDATE_DAMAGE( .FALSE., myTime, myIter, myThid )
 C     after updating damage to the current newtonIter, ice strength =
 C     elasticity needs to be recomputed

@@ -406,7 +406,7 @@ C     criterion for the transition from accurate to approximate FGMRES
        ENDIF
 #ifdef SEAICE_ALLOW_DAMAGE
 CML dont we have to put all of this into the same if-statement?
-       IF ( SEAICEupdateDamage .AND. SEAICEuseIMEX )
+       IF ( SEAICEupdateDamage )
      &      CALL SEAICE_UPDATE_DAMAGE( .FALSE., myTime, myIter, myThid )
       _EXCH_XY_RL(seaice_sigma1, myThid )
       _EXCH_XY_RL(seaice_sigma2, myThid )
@@ -431,7 +431,7 @@ C     end of Picard iterate
 #ifdef SEAICE_ALLOW_MEB
 C     after damage is up to date, we need to update sigma to be consistent
 C     with the damage, this time return result in global fields
-      IF ( SEAICEuseMEB .AND. SEAICEuseIMEX ) THEN
+      IF ( SEAICEuseMEB ) THEN
        CALL SEAICE_UPDATE_DAMAGE( .FALSE., myTime, myIter, myThid )
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)

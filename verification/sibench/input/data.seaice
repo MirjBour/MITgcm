@@ -9,7 +9,6 @@
  SEAICE_strength    = 5.0e+8,
  SEAICEcohesion     = 25.0e+1,
  SEAICEhealingTime = 1e+5,
- SEAICEuseIMEX= .TRUE.,
  SEAICEuseMEB   = .TRUE.,
  SEAICEupdateDamage = .TRUE.,
  SEAICEuseKrylov = .TRUE.,

@@ -1025,16 +1025,25 @@ C     SEAICEuseDynamics
        WRITE(msgBuf,'(A)')
      &  'SEAICE_CHECK: SEAICE_ALLOW_MEB and SEAICE_CGRID are defined'
        CALL PRINT_ERROR( msgBuf, myThid )
-       STOP 'ABNORMAL END: S/R SEAICE_CHECK'
+       errCount = errCount + 1
       ENDIF
 #endif
-#if defined(SEAICE_ALLOW_MEB) && !defined(SEAICE_ALLOW_DAMAGE)
+#ifdef SEAICE_ALLOW_MEB
+# ifndef SEAICE_ALLOW_DAMAGE
       WRITE(msgBuf,'(A)') 'SEAICE_CHECK: SEAICE_ALLOW_MEB requires'
       CALL PRINT_ERROR( msgBuf, myThid )
       WRITE(msgBuf,'(A)')
      &  'SEAICE_CHECK: that SEAICE_ALLOW_DAMAGE is defined'
       CALL PRINT_ERROR( msgBuf, myThid )
-      STOP 'ABNORMAL END: S/R SEAICE_CHECK'
+      errCount = errCount + 1
+# else
+      IF ( SEAICEuseMEB .AND. .NOT. SEAICEupdateDamage ) THEN
+       WRITE(msgBuf,'(2A)')'** WARNING ** SEAICE_CHECK: ',
+     &      'SEAICEuseMEB = T, but SEAICEupdateDamage = F'
+       CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
+     &                     SQUEEZE_RIGHT, myThid )
+      ENDIF
+# endif
 #endif
 
 #ifndef SEAICE_CGRID
