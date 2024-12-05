@@ -232,10 +232,10 @@ CMB           damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
 C     should be used to compare with Plante et. al (2019)
            damageCrit = MC_FAILURE_INV(sigI, sigII, q_inv, c_inv(I,J),
      &          damageCrit)
-           IF ( sigMax(I,J) .GT. 0. _d 0) 
+          ENDIF
+          IF ( sigMax(I,J) .GT. 0. _d 0) 
      &          damageCrit = MC_CUTOFF_INV(sigI, sigII, sigMax(I,J),
      &          damageCrit)
-          ENDIF
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
           damageCrit = MAX(damageCrit, 0. _d 0)
 C Damage-Options:
