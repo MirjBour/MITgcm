@@ -160,7 +160,7 @@ C--   SEAICE parameters
      & SEAICE_cBasalStar, SEAICEbasalDragU0, SEAICEbasalDragK1,
      & SEAICEbasalDragK2, SEAICE_wetAlbTemp, SEAICE_waterAlbedo,
      & SEAICE_strength, SEAICE_cStar, SEAICE_eccen, NoisFile,
-     & SEAICE_eccfr, SEAICEtdMU, SEAICEmcMu,
+     & SEAICE_eccfr, SEAICEtdMU, SEAICEmcMu, SEAICEsigCutoff,
      & SEAICEpressReplFac, SEAICE_tensilFac, SEAICE_tensilDepth,
      & SEAICEpoissonRatio, SEAICEviscosity, SEAICEcohesion, CohesFile,
      & SEAICEdamageMin, SEAICEdamageParm, SEAICEmebNormCorr,
@@ -609,6 +609,7 @@ C     MEB parameters
       SEAICEdamageMin     = 1. _d -16
       SEAICEviscosity     = UNSET_RL
       SEAICEcohesion      = 25.0 _d 3
+      SEAICEsigCutoff     = 50.0 _d 3
       SEAICEdamageParm    = 4.0 _d 0
       SEAICEintFrictCoeff = UNSET_RL
       SEAICEtanThetaCorr  = UNSET_RL

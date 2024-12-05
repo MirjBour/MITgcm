@@ -178,6 +178,8 @@ C--  Seaice-Dynamics parameters
      & 'SEAICEviscosity =', ' /* MEB apparent viscosity */')
        CALL WRITE_0D_RL( SEAICEcohesion   ,INDEX_NONE,
      & 'SEAICEcohesion =', ' /* max. cohesion in pure shear */')
+       CALL WRITE_0D_RL( SEAICEsigCutoff  ,INDEX_NONE,
+     & 'SEAICEsigCutoff =', ' /* max. compressive stress */')
        CALL WRITE_0D_RL( SEAICEdamageParm   ,INDEX_NONE,
      & 'SEAICEdamageParm =', ' /* exponent alpha of damage*/')
        CALL WRITE_0D_RL( SEAICEdamageTime   ,INDEX_NONE,

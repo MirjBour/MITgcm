@@ -395,8 +395,10 @@ C     SEAICEpoissonRatio :: Maxwell-Elasto-Brittle parameter (0.3)
 C     SEAICEdamageMin    :: lower cut off for regularization (1e-16)
 C     SEAICEviscosity    :: SEAICE_strength * 1e7
 C     SEAICEcohesion     :: constant cohesion parameter: 25 kN/m^2
+C     SEAICEsigCutoff    :: compressive invariant stress cutoff: 50 kN/m^2
+C                           (turn off with values <= 0)
 C     SEAICEdamageParm   :: parameter alpha that determines ratio of damaged
-C                           elasticity modululs undamaged appararent viscosity
+C                           elasticity modulus and undamaged apparent viscosity
 C                           > 1 (default = 4.0)
 C     SEAICEintFrictCoeff:: used to compute Mohr-Coulomb slope in principle
 C                           stress space (default = 0.7)
@@ -578,7 +580,7 @@ C
       _RL SEAICEsnowFracRidge
       _RL SINegFac
       _RL SEAICEpoissonRatio, SEAICEviscosity, SEAICEcohesion
-      _RL SEAICEdamageMin, SEAICEdamageParm
+      _RL SEAICEdamageMin, SEAICEdamageParm, SEAICEsigCutoff
       _RL SEAICEintFrictCoeff, SEAICEmohrCoulombSlope
       _RL SEAICEhealingTime, SEAICEdamageTime, SEAICEtanThetaCorr
 
@@ -630,7 +632,7 @@ C
      &    SINegFac,
      &    SEAICEsnowFracRidge,
      &    SEAICEpoissonRatio, SEAICEviscosity, SEAICEcohesion,
-     &    SEAICEdamageMin, SEAICEdamageParm,
+     &    SEAICEdamageMin, SEAICEdamageParm, SEAICEsigCutoff,
      &    SEAICEintFrictCoeff, SEAICEmohrCoulombSlope,
      &    SEAICEhealingTime, SEAICEdamageTime, SEAICEtanThetaCorr
 
