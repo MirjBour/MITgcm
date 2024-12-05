@@ -879,7 +879,7 @@ C normal correction angle is chosen to correct invariant stresses
         SEAICEtanThetaCorr = SEAICEmohrCoulombSlope
         SEAICEthetaCorr    = ATAN( SEAICEtanThetaCorr )/deg2rad
        ELSE
-        SEAICEtanThetaCorr = ATAN( SEAICEthetaCorr*deg2rad )
+        SEAICEtanThetaCorr = TAN( SEAICEthetaCorr*deg2rad )
        ENDIF
       ENDIF
 #endif
