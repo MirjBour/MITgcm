@@ -99,6 +99,7 @@ C     betaFacU/V     :: analog betaFacP1U/V
 
       _RL sigmaT(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sigmaC(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+      _RL sigMax(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL c_inv(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sig11 (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sig22 (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
@@ -109,11 +110,13 @@ C     betaFacU/V     :: analog betaFacP1U/V
       _RL TENSILE_FAILURE
       _RL MC_FAILURE
       _RL MC_FAILURE_INV
+      _RL MC_CUTOFF_INV
       _RL MC_NORM_FAILURE
       EXTERNAL fldAtZ, fldAtC
       EXTERNAL TENSILE_FAILURE
       EXTERNAL MC_FAILURE
       EXTERNAL MC_FAILURE_INV
+      EXTERNAL MC_CUTOFF_INV
       EXTERNAL MC_NORM_FAILURE
 
 CEOP
@@ -165,7 +168,8 @@ C     tensile strength cutoff
 C     in invariant stress state 
           c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
      &      SQRT(SEAICEintFrictCoeff**2 + 1)
-C
+          sigMax(I,J) = SEAICEsigCutoff * HEFF(I,J,bi,bj)
+CMB     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
           dCrit(I,J,bi,bj)  = 1. _d 0*maskInC(I,J,bi,bj)
           dCritZ(I,J,bi,bj) = 1. _d 0
          ENDDO
@@ -226,7 +230,10 @@ CMB           damageCrit = MC_FAILURE(sig1,sig2,q,sigmaC(I,J),damageCrit)
 C     or above sigmaC+q*sig2
 CMB           damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
 C     should be used to compare with Plante et. al (2019)
-           damageCrit =MC_FAILURE_INV(sigI, sigII, q_inv, c_inv(I,J),
+           damageCrit = MC_FAILURE_INV(sigI, sigII, q_inv, c_inv(I,J),
+     &          damageCrit)
+           IF ( sigMax(I,J) .GT. 0. _d 0) 
+     &          damageCrit = MC_CUTOFF_INV(sigI, sigII, sigMax(I,J),
      &          damageCrit)
           ENDIF
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
@@ -396,10 +403,24 @@ CEOP
       _RL denom
       denom = sigII + slope*sigI
       mc_failure_inv = damageCrit
-      IF ( denom .NE. 0. _d 0 ) THEN
-       IF ( denom .GT. chsn ) THEN
-        mc_failure_inv = MIN(damageCrit,chsn/denom)
-        ENDIF
+      IF ( denom .GT. chsn ) THEN
+       mc_failure_inv = MIN(damageCrit,chsn/denom)
+      ENDIF
+      RETURN
+      END
+CBOP
+C     !ROUTINE: MC_CUTOFF_INV
+C     !INTERFACE:
+      _RL FUNCTION MC_CUTOFF_INV(sigI,sigII,cutoff,damageCrit)
+      IMPLICIT NONE
+C     compute Mohr-Coulomb failure criterion and updage damageCrit
+      _RL sigI, sigII, cutoff, damageCrit
+CEOP
+      _RL denom
+      denom = sigII - sigI
+      mc_cutoff_inv = damageCrit
+      IF ( denom .GT. cutoff ) THEN
+       mc_cutoff_inv = MIN(damageCrit,cutoff/denom)
       ENDIF
       RETURN
       END
