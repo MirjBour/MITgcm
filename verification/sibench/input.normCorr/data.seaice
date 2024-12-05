@@ -10,7 +10,7 @@
  SEAICEhealingTime = 1e+5,
  SEAICEmebNormCorr = .TRUE.,
  SEAICEuseMEB   = .TRUE.,
-# SEAICEupdateDamage = .TRUE.,
+ SEAICEupdateDamage = .TRUE.,
  SEAICEuseKrylov = .TRUE.,
  SEAICEdamageTime = 8.,
 #SEAICEscaleSurfStress = .FALSE.,
