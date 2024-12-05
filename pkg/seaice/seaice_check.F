@@ -1205,7 +1205,7 @@ C--   SEAICE_ALLOW_FREEDRIFT and SEAICEuseFREEDRIFT
         WRITE(msgBuf,'(A)') 'SEAICE_CHECK: SEAICEuseIMEX = .TRUE. '//
      &       'only allowed with SEAICEuseJFNK = .TRUE.'
         CALL PRINT_ERROR( msgBuf, myThid )
-CML        errCount = errCount + 1
+        errCount = errCount + 1
        ENDIF
       ENDIF
       IF ( SEAICEuseIMEX ) THEN
