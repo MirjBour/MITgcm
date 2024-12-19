@@ -110,13 +110,13 @@ C     betaFacU/V     :: analog betaFacP1U/V
       _RL TENSILE_FAILURE
       _RL MC_FAILURE
       _RL MC_FAILURE_INV
-      _RL MC_CUTOFF_INV
+C      _RL MC_CUTOFF_INV
       _RL MC_NORM_FAILURE
       EXTERNAL fldAtZ, fldAtC
       EXTERNAL TENSILE_FAILURE
       EXTERNAL MC_FAILURE
       EXTERNAL MC_FAILURE_INV
-      EXTERNAL MC_CUTOFF_INV
+C      EXTERNAL MC_CUTOFF_INV
       EXTERNAL MC_NORM_FAILURE
 
 CEOP
@@ -234,8 +234,10 @@ C     should be used to compare with Plante et. al (2019)
      &          damageCrit)
           ENDIF
           IF ( sigMax(I,J) .GT. 0. _d 0) 
-     &          damageCrit = MC_CUTOFF_INV(sigI, sigII, sigMax(I,J),
-     &          damageCrit)
+     &          CALL MC_CUTOFF_INV(
+     I          sigI, sigII, sigMax(I,J),
+     O          useCutoff(I,J,bi,bj),
+     U          damageCrit)
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
           damageCrit = MAX(damageCrit, 0. _d 0)
 C Damage-Options:
@@ -411,16 +413,19 @@ CEOP
 CBOP
 C     !ROUTINE: MC_CUTOFF_INV
 C     !INTERFACE:
-      _RL FUNCTION MC_CUTOFF_INV(sigI,sigII,cutoff,damageCrit)
+      SUBROUTINE MC_CUTOFF_INV(sigI,sigII,cutoff,useCo,damageCrit)
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
       _RL sigI, sigII, cutoff, damageCrit
+      LOGICAL useCo
 CEOP
       _RL denom
       denom = sigII - sigI
-      mc_cutoff_inv = damageCrit
+      useCo = .FALSE.
       IF ( denom .GT. cutoff ) THEN
-       mc_cutoff_inv = MIN(damageCrit,cutoff/denom)
+       denom = cutoff/denom
+       useCo = damageCrit .GT. denom
+       damageCrit = MIN(damageCrit, denom)
       ENDIF
       RETURN
       END
@@ -1030,6 +1035,7 @@ c     EXTERNAL fldAtC
 CEOP
       cosThetaMohr = 1.
       IF ( SEAICEmebNormCorr ) THEN
+
        DO j=0,sNy
         DO i=0,sNx
          cosThetaMohr = 1.
@@ -1042,7 +1048,8 @@ C     Compute uncorrected invariants
          sigII = 0.5 _d 0 * SQRT( seaice_sigma2(i,j,bi,bj)**2
      &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2 )
 C     Correct the invariants
-         IF ( sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
+         IF ( .NOT. useCutoff(i,j,bi,bj) 
+     &        .AND. sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
           sigI  = sigI - sigII*(1. _d 0 - dCrit(i,j,bi,bj))
      &         *SEAICEtanThetaCorr
          ELSE
