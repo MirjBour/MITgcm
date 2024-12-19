@@ -92,6 +92,13 @@ C     bi,bj  :: tile counters
       LOGICAL diag_SIenpi_isOn, diag_SIenpot_isOn
       LOGICAL diag_SIpRfric_isOn, diag_SIpSfric_isOn
 #endif /* ALLOW_DIAGNOSTICS */
+#ifdef SEAICE_ALLOW_MEB_SUBTIMESTEPPING
+      _RL deltaTdyn0
+      INTEGER myIter0
+      INTEGER nSub
+      INTEGER iSub
+      nSub = 120
+#endif
 
 C Initialise local variables in common block
       IF ( myIter.EQ.nIter0 ) THEN
@@ -372,6 +379,37 @@ c          damageNm1Z(I,J,bi,bj)= damageZ(I,J,bi,bj)
        ENDIF
 #endif /* ALLOW_OBCS */
 
+#ifdef SEAICE_ALLOW_MEB_SUBTIMESTEPPING
+       deltaTdyn0 = SEAICE_deltaTdyn
+       SEAICE_deltaTdyn = deltaTdyn0 / FLOAT(nSub)
+       myIter0 = myIter
+       DO iSub = 1, nSub
+        myIter = myIter0*nSub + iSub-1
+        DO bj=myByLo(myThid),myByHi(myThid)
+         DO bi=myBxLo(myThid),myBxHi(myThid)
+# ifdef SEAICE_ALLOW_DAMAGE
+          IF ( SEAICEupdateDamage ) THEN
+           DO j=2-OLy,sNy+OLy
+            DO i=2-OLx,sNx+OLx
+             damageZ(I,J,bi,bj) = fldAtZ(damage(:,:,bi,bj),I,J,bi,bj)
+C     make sure that 0 < damage <=1
+             damageZ(I,J,bi,bj) = MIN(1. _d 0, damageZ(I,J,bi,bj))
+             damageZ(I,J,bi,bj) = MAX(0. _d 0, damageZ(I,J,bi,bj))
+            ENDDO
+           ENDDO
+           DO j=1-OLy,sNy+OLy
+            DO i=1-OLx,sNx+OLx
+             damageNm1(I,J,bi,bj) = damage(I,J,bi,bj)
+C     no longer used for damage option A1 (sea seaice_update_damage.F)
+c          damageNm1Z(I,J,bi,bj)= damageZ(I,J,bi,bj)
+            ENDDO
+           ENDDO
+          ENDIF
+# endif /* SEAICE_ALLOW_DAMAGE */
+CML          CALL SEAICE_CALC_ICE_STRENGTH( bi, bj, myTime,myIter,myThid )
+         ENDDO
+        ENDDO
+#endif
 #ifdef SEAICE_ALLOW_EVP
 # ifdef ALLOW_AUTODIFF_TAMC
 CADJ STORE uice    = comlev1, key=ikey_dynamics, kind=isbyte
@@ -379,36 +417,36 @@ CADJ STORE vice    = comlev1, key=ikey_dynamics, kind=isbyte
 CADJ STORE uicenm1 = comlev1, key=ikey_dynamics, kind=isbyte
 CADJ STORE vicenm1 = comlev1, key=ikey_dynamics, kind=isbyte
 # endif /* ALLOW_AUTODIFF_TAMC */
-       IF ( SEAICEuseEVP ) THEN
+        IF ( SEAICEuseEVP ) THEN
 C     Elastic-Viscous-Plastic solver, following Hunke (2001)
-        CALL SEAICE_EVP( myTime, myIter, myThid )
-       ENDIF
+         CALL SEAICE_EVP( myTime, myIter, myThid )
+        ENDIF
 #endif /* SEAICE_ALLOW_EVP */
 
-       IF ( SEAICEuseLSR ) THEN
+        IF ( SEAICEuseLSR ) THEN
 C     Picard solver with LSR scheme (Zhang-J/Hibler 1997), ported to a C-grid
-        CALL SEAICE_LSR( myTime, myIter, myThid )
-       ENDIF
+         CALL SEAICE_LSR( myTime, myIter, myThid )
+        ENDIF
 
 #ifdef SEAICE_ALLOW_KRYLOV
 # ifdef ALLOW_AUTODIFF
-       STOP 'Adjoint does not work with Picard-Krylov solver.'
+        STOP 'Adjoint does not work with Picard-Krylov solver.'
 # else
-       IF ( SEAICEuseKrylov ) THEN
+        IF ( SEAICEuseKrylov ) THEN
 C     Picard solver with Matrix-free Krylov solver (Lemieux et al. 2008)
-        CALL SEAICE_KRYLOV( myTime, myIter, myThid )
-       ENDIF
+         CALL SEAICE_KRYLOV( myTime, myIter, myThid )
+        ENDIF
 # endif /*  ALLOW_AUTODIFF */
 #endif /* SEAICE_ALLOW_KRYLOV */
 
 #ifdef SEAICE_ALLOW_JFNK
 # ifdef ALLOW_AUTODIFF
-       STOP 'Adjoint does not work with JFNK solver.'
+        STOP 'Adjoint does not work with JFNK solver.'
 # else
-       IF ( SEAICEuseJFNK ) THEN
+        IF ( SEAICEuseJFNK ) THEN
 C     Jacobian-free Newton Krylov solver (Lemieux et al. 2010, 2012)
-        CALL SEAICE_JFNK( myTime, myIter, myThid )
-       ENDIF
+         CALL SEAICE_JFNK( myTime, myIter, myThid )
+        ENDIF
 # endif /*  ALLOW_AUTODIFF */
 #endif /* SEAICE_ALLOW_JFNK */
 CML#ifdef SEAICE_ALLOW_DAMAGE
@@ -416,6 +454,19 @@ CML       IF ( SEAICEupdateDamage )
 CML     &      CALL SEAICE_UPDATE_DAMAGE( .TRUE., myTime, myIter, myThid )
 CML#endif /* SEAICE_ALLOW_DAMAGE */
 C End of IF (SEAICEuseDYNAMICS ...
+#ifdef SEAICE_ALLOW_MEB_SUBTIMESTEPPING
+CML#ifdef SEAICE_ALLOW_DAMAGE
+CML        _EXCH_XY_RL( damage, myThid )
+CML#endif
+CML        _EXCH_XY_RL( seaice_sigma1,   myThid )
+CML        _EXCH_XY_RL( seaice_sigma2,   myThid )
+CML        _EXCH_XY_RL( seaice_sigma12,  myThid )
+CML        _EXCH_XY_RL( seaice_sigma12C, myThid )
+       ENDDO
+C     restore timestep
+      SEAICE_deltaTdyn = deltaTdyn0
+      myIter = myIter0
+#endif
       ENDIF
 #endif /* SEAICE_ALLOW_DYNAMICS */
 
