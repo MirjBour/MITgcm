@@ -131,7 +131,7 @@ C--   SEAICE parameters
      & SEAICEaEVPcoeff, SEAICEaEVPcStar, SEAICEaEVPalphaMin,
      & SEAICE_zetaMin, SEAICE_zetaMaxFac, SEAICEusePicardAsPrecon,
      & SEAICEuseKrylov, SEAICEuseJFNK, SEAICEuseMEB, SEAICEupdateDamage,
-     & SEAICEuseNoisyIceStrength,
+     & SEAICEadvDamage, SEAICEuseNoisyIceStrength,
      & SEAICEnonLinIterMax, SEAICElinearIterMax, SEAICEnonLinTol,
      & SEAICEnewtonIterMax, SEAICEkrylovIterMax, JFNKgamma_nonlin,
      & SEAICEpreconNL_Iter, SEAICEpreconLinIter,
@@ -602,6 +602,7 @@ c     MAX_TICE           = 30.     _d 0
       SEAICE_abEps       = UNSET_RL
 C
       SEAICEupdateDamage  = .FALSE.
+      SEAICEadvDamage  = .FALSE.
 C     MEB parameters
       SEAICEuseMEB        = .FALSE.
       SEAICEmebNormCorr   = .FALSE.
@@ -719,7 +720,8 @@ C nITD is set in SEAICE_SIZE.h
 C--   Set default values (if not specified in data.seaice namelist)
 
 C--   damage always needs to be updated for MEB
-CMB      IF ( SEAICEuseMEB ) SEAICEupdateDamage = .TRUE.
+      IF ( SEAICEuseMEB ) SEAICEupdateDamage = .TRUE.
+      IF ( SEAICEuseMEB ) SEAICEadvDamage = .TRUE.
 C--   Default ice strength (Pstar)
       IF (SEAICE_strength .EQ. UNSET_RL) THEN
        SEAICE_strength = 2.75 _d +04

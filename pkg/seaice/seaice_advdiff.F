@@ -417,7 +417,7 @@ C     now do the "explicit" time step
 #endif /* SEAICE_VARIABLE_SALINITY */
 
 #ifdef SEAICE_ALLOW_DAMAGE
-        IF ( SEAICEadvArea .AND. SEAICEupdateDamage ) THEN
+        IF ( SEAICEadvArea .AND. SEAICEadvDamage ) THEN
          CALL SEAICE_ADVECTION(
      I        GAD_AREA, SEAICEadvSchArea, .FALSE.,
      I        uc(1-OLx,1-OLy,bi,bj), vc(1-OLx,1-OLy,bi,bj),

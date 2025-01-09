@@ -52,6 +52,8 @@ C     SEAICEuseMEB      :: use Maxwell-Elasto-Brittle rheology (within
 C                          implicity solver for momentum equations)
 C     SEAICEupdateDamage:: update damage parameter (true for MEB,
 C                          false otherwise)
+C     SEAICEadvDamage   :: advect damage parameter (true for MEB,
+C                          false otherwise)
 C     SEAICEuseNoisyIceStrength:: method to apply noise to VP ice strength
 C                          (a noise file needs to be given)
 C     SEAICEmebNormCorr :: use normal stress correction (Plante+Tremblay, 2021)
@@ -95,8 +97,8 @@ C     SEAICEadvSnow     :: turn on advection of snow (does not work with
 C                          non-default Leap-frog scheme for advection)
 C     SEAICEadvSalt     :: turn on advection of salt (does not work with
 C                          non-default Leap-frog scheme for advection)
-C     SEAICEadvStress     :: turn on advection of stress tensor
-C                          (default = .false.)
+C     SEAICEadvStress   :: turn on advection of stress tensor 
+C                          (true for MEB, false otherwise)
 C     SEAICEmultiDimAdvection:: internal flag, set to false if any sea ice
 C                          variable uses a non-multi-dimensional advection
 C                          scheme
@@ -144,7 +146,7 @@ C     SEAICE_mon_mnc    :: write monitor to netcdf file
      &     SEAICEuseLSR, SEAICEuseKrylov,
      &     SEAICEuseJFNK, SEAICEuseIMEX, SEAICEuseBDF2,SEAICEuseMEB,
      &     SEAICEupdateDamage, SEAICEuseNoisyIceStrength,
-     &     SEAICEmebNormCorr,
+     &     SEAICEmebNormCorr,SEAICEadvDamage,
      &     SEAICEusePicardAsPrecon,
      &     useHibler79IceStrength, SEAICEsimpleRidging,
      &     SEAICEuseLinRemapITD, SEAICEuseTD, SEAICEusePL,
@@ -176,7 +178,7 @@ C     SEAICE_mon_mnc    :: write monitor to netcdf file
      &     SEAICEuseLSR, SEAICEuseKrylov,
      &     SEAICEuseJFNK, SEAICEuseIMEX, SEAICEuseBDF2, SEAICEuseMEB,
      &     SEAICEupdateDamage, SEAICEuseNoisyIceStrength,
-     &     SEAICEmebNormCorr,
+     &     SEAICEmebNormCorr, SEAICEadvDamage,
      &     SEAICEusePicardAsPrecon,
      &     useHibler79IceStrength, SEAICEsimpleRidging,
      &     SEAICEuseLinRemapITD, SEAICEuseTD, SEAICEusePL,
