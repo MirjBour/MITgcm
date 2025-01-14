@@ -1042,6 +1042,8 @@ CEOP
          IF ( seaice_sigma2(i,j,bi,bj) .NE. 0. _d 0 ) THEN
           cosThetaMohr = COS( ATAN( 2. * seaice_sigma12C(i,j,bi,bj)
      &         / seaice_sigma2(i,j,bi,bj) ) )
+         ElSE
+          cosThetaMohr = 0. _d 0
          ENDIF
 C     Compute uncorrected invariants
          sigI  = 0.5 _d 0 * seaice_sigma1(i,j,bi,bj)
