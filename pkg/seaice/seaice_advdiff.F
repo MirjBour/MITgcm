@@ -472,6 +472,13 @@ C advect sigma_1
 C     now do the "explicit" time step
          DO j=1,sNy
           DO i=1,sNx
+           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
+     &         *AREA(i-1,j-1,bi,bj)*AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
+     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj)
+     &         *AREA(i-1,j+1,bi,bj) .LE. 0. _d 0 ) THEN
+            gFld(i,j) = 0. _d 0
+            gFld1(i,j) = 0. _d 0
+           ENDIF
            gFld(i,j) = (gFld(i,j) + gFld1(i,j))
            seaice_sigma1(i,j,bi,bj) = HEFFM(i,j,bi,bj) * (
      &          seaice_sigma1(i,j,bi,bj)
@@ -490,11 +497,19 @@ C advect sigma_2
 C     now do the "explicit" time step
          DO j=1,sNy
           DO i=1,sNx
-           gFld(i,j) = (gFld(i,j) + gFld2(i,j))
+           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
+     &         *AREA(i-1,j-1,bi,bj)
+     &         *AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
+     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj)
+     &         *AREA(i-1,j+1,bi,bj)
+     &         .LE. 0. _d 0 ) THEN
+            gFld(i,j) = 0. _d 0
+            gFld2(i,j) = 0. _d 0
+           ENDIF
+           gFld(i,j) = (gFld(i,j) + gFld2(i,j)) 
            seaice_sigma2(i,j,bi,bj) = HEFFM(i,j,bi,bj) * (
      &          seaice_sigma2(i,j,bi,bj)
-     &          + SEAICE_deltaTtherm * gFld(i,j)
-     &          )
+     &          + SEAICE_deltaTtherm * gFld(i,j))
           ENDDO
          ENDDO
 C advect sigma_12C
@@ -508,18 +523,35 @@ C advect sigma_12C
 C     now do the "explicit" time step
          DO j=0,sNy+1
           DO i=0,sNx+1
-           gFld(i,j) = (gFld(i,j) + gFld12(i,j))
+           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
+     &         *AREA(i-1,j-1,bi,bj)
+     &         *AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
+     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj)
+     &         *AREA(i-1,j+1,bi,bj) 
+     &         .LE. 0. _d 0 ) THEN
+            gFld(i,j) = 0. _d 0
+            gFld12(i,j) = 0. _d 0
+           ENDIF
+           gFld(i,j) = (gFld(i,j) + gFld12(i,j)) 
            seaice_sigma12C(i,j,bi,bj) = HEFFM(i,j,bi,bj) * (
-     &          seaice_sigma12C(i,j,bi,bj)
-     &          + SEAICE_deltaTtherm * gFld(i,j)
+     &          seaice_sigma12C(i,j,bi,bj)                 
+     &          + SEAICE_deltaTtherm * gFld(i,j)          
      &          )
           ENDDO
          ENDDO
 C advect sigma_12 by averaging the tendency for sigma12C to Z-points
          DO j=1,sNy+1
-          DO i=1,sNx+1
+          DO i = 0, sNX+1
+c           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
+c     &         *AREA(i-1,j-1,bi,bj)
+c     &         *AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
+c     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj) 
+c     &         *AREA(i-1,j+1,bi,bj) 
+c     &         .GT. 0. _d 0 ) THEN
+C
            seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &          + SEAICE_deltaTtherm * fldAtZ(gFld,i,j,bi,bj)
+c           ENDIF
           ENDDO
          ENDDO
         ENDIF
