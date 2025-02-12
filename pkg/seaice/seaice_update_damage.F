@@ -269,8 +269,8 @@ C Sigma-Update-Options:
 C A way to reduce the numerical error of magnitude e-10
 C          IF (dCrit(I,J,bi,bj) .LT. 1. _d 0)
 C     &      dCrit(I,J,bi,bj)=dCrit(I,J,bi,bj)*(1. _d 0 - 1. _d -6)         
-          IF ( AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-     &         damage(I,J,bi,bj) = 1. _d 0
+CMB          IF ( AREA(I,J,bi,bj) .EQ. 0. _d 0 )
+CMB     &         damage(I,J,bi,bj) = 1. _d 0
 #ifdef ALLOW_DIAGNOSTICS
 C     just diagnostics
 C     hack to save principle stress before updating sigma
