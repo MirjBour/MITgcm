@@ -398,7 +398,7 @@ C     SEAICEdamageMin    :: lower cut off for regularization (1e-16)
 C     SEAICEviscosity    :: SEAICE_strength * 1e7
 C     SEAICEcohesion     :: constant cohesion parameter: 25 kN/m^2
 C     SEAICEsigCutoff    :: compressive invariant stress cutoff: 50 kN/m^2
-C                           (turn off with values <= 0)
+C                           (turn off with 0.0)
 C     SEAICEdamageParm   :: parameter alpha that determines ratio of damaged
 C                           elasticity modulus and undamaged apparent viscosity
 C                           > 1 (default = 4.0)
