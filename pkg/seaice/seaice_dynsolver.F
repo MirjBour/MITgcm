@@ -346,9 +346,7 @@ C     healing part of damage timestepping
      &     recip_damageTime  = 1. _d 0/SEAICEdamageTime
          DO j=1-OLy,sNy+OLy
           DO i=1-OLx,sNx+OLx
-           damage(I,J,bi,bj) = damageNm1(I,J,bi,bj) *
-     &         (SEAICE_deltaTdyn * recip_damageTime *
-     &         (dCrit(I,J,bi,bj) -1.) +1.)
+           damage(I,J,bi,bj) = damage(I,J,bi,bj)
      &         + SEAICE_deltaTdyn*recip_healingTime * maskInC(I,J,bi,bj)
            damageNm1(I,J,bi,bj) = damage(I,J,bi,bj)
 C     no longer used for damage option A1 (sea seaice_update_damage.F)
