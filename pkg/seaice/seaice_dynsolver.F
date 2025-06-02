@@ -73,6 +73,7 @@ C     bi,bj  :: tile counters
 #ifdef SEAICE_ALLOW_DAMAGE
       _RL fldAtZ
       EXTERNAL fldAtZ
+      _RL recip_healingTime, recip_damageTime
 #endif
 #ifdef ALLOW_DIAGNOSTICS
 # ifdef ALLOW_AUTODIFF
@@ -336,8 +337,19 @@ C     make sure that 0 < damage <=1
            damageZ(I,J,bi,bj) = MAX(0. _d 0, damageZ(I,J,bi,bj))
           ENDDO
          ENDDO
+C     healing part of damage timestepping
+         recip_healingTime= 0.
+         IF ( SEAICEhealingTime .GT. 0. _d 0 )
+     &     recip_healingTime = 1. _d 0/SEAICEhealingTime
+         recip_damageTime = 0.
+         IF ( SEAICEdamageTime .GT. 0. _d 0 )
+     &     recip_damageTime  = 1. _d 0/SEAICEdamageTime
          DO j=1-OLy,sNy+OLy
           DO i=1-OLx,sNx+OLx
+           damage(I,J,bi,bj) = damageNm1(I,J,bi,bj) *
+     &         (SEAICE_deltaTdyn * recip_damageTime *
+     &         (dCrit(I,J,bi,bj) -1.) +1.)
+     &         + SEAICE_deltaTdyn*recip_healingTime * maskInC(I,J,bi,bj)
            damageNm1(I,J,bi,bj) = damage(I,J,bi,bj)
 C     no longer used for damage option A1 (sea seaice_update_damage.F)
 c          damageNm1Z(I,J,bi,bj)= damageZ(I,J,bi,bj)

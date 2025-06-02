@@ -134,9 +134,10 @@ C
       deltaTloc = SEAICE_deltaTdyn
 
 C     parameters
-      recip_healingTime= 0.
-      IF ( SEAICEhealingTime .GT. 0. _d 0 )
-     &     recip_healingTime = 1. _d 0/SEAICEhealingTime
+CMB moving the helaing out of IMEX loop
+CMB      recip_healingTime= 0.
+CMB      IF ( SEAICEhealingTime .GT. 0. _d 0 )
+CMB     &     recip_healingTime = 1. _d 0/SEAICEhealingTime
       recip_damageTime = 0.
       IF ( SEAICEdamageTime .GT. 0. _d 0 )
      &     recip_damageTime  = 1. _d 0/SEAICEdamageTime
@@ -244,7 +245,7 @@ C Damage-Options:
 C Option A1: Damage    explicit and for dt< damagetime:
           damage(I,J,bi,bj) = damageNm1(I,J,bi,bj) *
      &         (deltaTloc*recip_damageTime*(damageCrit-1.)+ 1.)
-     &          + deltaTloc*recip_healingTime * maskInC(I,J,bi,bj)
+CMB     &          + deltaTloc*recip_healingTime * maskInC(I,J,bi,bj)
 C Option A2: new old version of damage without dependeny of time step
 c          damage(I,J,bi,bj) = damageNm1(I,J,bi,bj)*damageCrit
 c          damage(I,J,bi,bj) = damage(I,J,bi,bj) +
@@ -767,7 +768,6 @@ C     i,j :: loop indices
       _RL sig12   (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL sig12C  (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
 CEOP
-
 CMBC     update press0 to include new damage
 C new damage should always be uptodate.Testreport agrees.
 CMB      CALL SEAICE_CALC_ICE_STRENGTH(
