@@ -169,8 +169,9 @@ C     tensile strength cutoff
 C     in invariant stress state 
           c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
      &      SQRT(SEAICEintFrictCoeff**2 + 1)
+     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
           sigMax(I,J) = SEAICEsigCutoff * HEFF(I,J,bi,bj)
-CMB     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
+     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
           dCrit(I,J,bi,bj)  = 1. _d 0*maskInC(I,J,bi,bj)
           dCritZ(I,J,bi,bj) = 1. _d 0
          ENDDO
