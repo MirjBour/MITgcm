@@ -1070,12 +1070,29 @@ C     Update global variables
 
        DO j=0,sNy
         DO i=0,sNx
-         seaice_sigma1(i,j,bi,bj) = seaice_sigma1(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)
-CMB * maskInC(I,J,bi,bj)
-         seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
-     &        * dCrit(i,j,bi,bj)
-CMB * maskInC(I,J,bi,bj)
+         cosThetaMohr = 1.
+         IF ( seaice_sigma2(i,j,bi,bj) .NE. 0. _d 0 ) THEN
+          cosThetaMohr = COS( ATAN( 2. * seaice_sigma12C(i,j,bi,bj)
+     &         / seaice_sigma2(i,j,bi,bj) ) )
+         ElSE
+          cosThetaMohr = 0. _d 0
+         ENDIF
+C     Compute uncorrected invariants
+         sigI  = 0.5 _d 0 * seaice_sigma1(i,j,bi,bj)
+         sigII = 0.5 _d 0 * SQRT( seaice_sigma2(i,j,bi,bj)**2
+     &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2 )
+C     Correct the invariants
+         sigI = sigI  * dCrit(i,j,bi,bj)
+         sigII = sigII * dCrit(i,j,bi,bj)
+C     Update global variables
+         seaice_sigma1(i,j,bi,bj) = 2. _d 0 * sigI
+         seaice_sigma2(i,j,bi,bj) = SIGN(
+     &        2. _d 0 * sigII * cosThetaMohr, seaice_sigma2(i,j,bi,bj) )   
+CMB           
+CMB         seaice_sigma1(i,j,bi,bj) = seaice_sigma1(i,j,bi,bj)
+CMB     &        * dCrit(i,j,bi,bj)
+CMB         seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
+CMB     &        * dCrit(i,j,bi,bj)
         ENDDO
        ENDDO
 
