@@ -242,21 +242,8 @@ C     should be used to compare with Plante et. al (2019)
      U          damageCrit)
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
           damageCrit = MAX(damageCrit, 0. _d 0)
-C Damage-Options:
-C Option A1: Damage    explicit and for dt< damagetime:
           damage(I,J,bi,bj) = damageNm1(I,J,bi,bj) *
      &         (deltaTloc*recip_damageTime*(damageCrit-1.)+ 1.)
-CMB     &          + deltaTloc*recip_healingTime * maskInC(I,J,bi,bj)
-C Option A2: new old version of damage without dependeny of time step
-c          damage(I,J,bi,bj) = damageNm1(I,J,bi,bj)*damageCrit
-c          damage(I,J,bi,bj) = damage(I,J,bi,bj) +
-c     &     (1-damage(I,J,bi,bj)*deltaTLoc*recip_healingTime)
-C Option A3: implicit time dependent damage
-c          damage(I,J,bi,bj) = 1. _d 0 *
-c     &      (damageNm1(I,J,bi,bj) + deltaTloc*recip_healingTime)/
-c     &      (1. - deltaTloc*recip_damageTime*(damageCrit-1.))
-C Option A4: do not update damage ever
-c          damage(i,j,bi,bj) = 1.
 C     make sure that 0 < damage <=1
           damage(I,J,bi,bj) = MIN(1. _d 0, damage(I,J,bi,bj))
           damage(I,J,bi,bj) = MAX(0. _d 0, damage(I,J,bi,bj))
@@ -268,11 +255,6 @@ C Sigma-Update-Options:
 #else
           dCrit(I,J,bi,bj) = damageCrit*maskInC(I,J,bi,bj)
 #endif
-C A way to reduce the numerical error of magnitude e-10
-C          IF (dCrit(I,J,bi,bj) .LT. 1. _d 0)
-C     &      dCrit(I,J,bi,bj)=dCrit(I,J,bi,bj)*(1. _d 0 - 1. _d -6)         
-CMB          IF ( AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-CMB     &         damage(I,J,bi,bj) = 1. _d 0
 #ifdef ALLOW_DIAGNOSTICS
 C     just diagnostics
 C     hack to save principle stress before updating sigma
@@ -295,50 +277,8 @@ c     _EXCH_XY_RL(sig12C, myThid )
       _EXCH_XY_RL(damage, myThid )
       DO bj=myByLo(myThid),myByHi(myThid)
        DO bi=myBxLo(myThid),myBxHi(myThid)
-C dcritZ-Option
-C Option C1/C2: averaged/new dcritz
         DO j=1,sNy+1
          DO i=1,sNx+1
-c          sigp   = fldAtZ(sig11 + sig22,i,j,bi,bj)
-c          sigm   = fldAtZ(sig11 - sig22,i,j,bi,bj)
-c          sigTmp = SQRT( sigm*sigm + 4.*sig12(i,j)**2 )
-c          sig1   = 0.5 _d 0 * ( sigp + sigTmp )
-c          sig2   = 0.5 _d 0 * ( sigp - sigTmp )
-c          damageCrit = 1. _d 0
-c          sigmaC(I,J) = - 2.*cohesion(I,J,bi,bj)*sqrtq
-c     &         *fldAtZ(HEFF(:,:,bi,bj),i,j,bi,bj)
-c          sigmaT(I,J) = - sigmaC(I,J)*recip_q
-c          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)
-c          damageCrit = TENSILE_FAILURE(sig2,sig1,sigmaT(I,J),damageCrit)
-c          damageCrit = MC_FAILURE(sig1,sig2,q,sigmaC(I,J),damageCrit)
-c          damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
-c          damageCrit = MAX(damageCrit, 0. _d 0)
-C Damage-Options:
-C Option A1: Damage explicit and for dt< damagetime:
-c          damageZ(I,J,bi,bj) = damageNm1Z(I,J,bi,bj) *
-c     &         (deltaTloc*recip_damageTime*(damageCrit-1.)+ 1.)
-c     &          + deltaTloc*recip_healingTime
-C Option A2: damage without dependency of time step
-c          damageZ(I,J,bi,bj) = damageNm1Z(I,J,bi,bj)*damageCrit
-c          damageZ(I,J,bi,bj) = damageZ(I,J,bi,bj) +
-c     &     (1-damage(I,J,bi,bj)*deltaTLoc*recip_healingTime)
-C Option A3: implicit time dependent damage
-c          damageZ(I,J,bi,bj) = 1. _d 0 *
-c     &      (damageNm1Z(I,J,bi,bj) + deltaTloc*recip_healingTime)/
-c     &      (1. - deltaTloc*recip_damageTime*(damageCrit-1.))
-C Option A4: do not update damage ever
-c          damageZ(i,j,bi,bj) = 1.
-C Sigma-Update-Options:
-C Option B1/C1: update stress time dependent/averaged
-c          dCritZ(I,J,bi,bj) = fldAtZ(damage(:,:,bi,bj),I,J,bi,bj)
-C Option B1/C2: update stress time dependent/new
-c          dCritZ(I,J,bi,bj) = damageZ(I,J,bi,bj)
-C Option B2/C1: update with dcrit/averaged
-C          dCritZ(i,j,bi,bj) = fldAtZ(dCrit(:,:,bi,bj),I,J,bi,bj)
-C Option B2/C2: update with new dcrit
-c          dCritZ(I,J,bi,bj) = damageCrit
-C option B3: never update dcrit
-c          dCritZ(I,J,bi,bj) = 1. _d 0
 C Option DoubleParameters
           dCritZ(I,J,bi,bj) = fldAtZ(dCrit(:,:,bi,bj),I,J,bi,bj)
           damageZ(I,J,bi,bj) = fldAtZ(damage(:,:,bi,bj),I,J,bi,bj)
@@ -665,13 +605,6 @@ C     (1 + dt*Elasiticy/viscosity)
       ENDDO
       DO J=1,sNy+1
        DO I=1,sNx+1
-C Update-RHS-Options E1/E2
-C Option E1: average whole denominator
-c        sig12(I,J) = sigma12(I,J,bi,bj)*fldAtZ(denom,i,j,bi,bj)
-C Option E2: average only recip_rlx
-C        sig12(I,J) = sigma12(I,J,bi,bj)
-C     &       /(1. _d 0+deltaTloc*fldAtZ(recip_rlx,i,j,bi,bj))
-C Option DoupleParameters
          sig12(I,J) = sigma12(I,J,bi,bj)*denomZ(I,J)
        ENDDO
       ENDDO
@@ -863,10 +796,7 @@ C     i,j :: loop indices
       _RL recip_rlx(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL denom(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL denomZ(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
-c     _RL denom_z
       _RL deltaTloc
-c     _RL SEAICEmebMu, SEAICEmebLambda
-c     _RL zetaLoc, etaLoc
       _RL sigp, sigm, ep, em, rhs12
       _RL fldAtZ, fldAtC
       EXTERNAL fldAtZ, fldAtC
@@ -882,11 +812,7 @@ CEOP
       ENDDO
 C     some abbreviations
       deltaTloc = SEAICE_deltaTdyn
-cC     derived parameters (should probably be global variables)
-c      SEAICEmebMu = 0.5 _d 0/(1.+SEAICEpoissonRatio)
-c      SEAICEmebLambda = SEAICEmebMu * 2. _d 0*SEAICEpoissonRatio
-c     &     /(1. _d 0 - SEAICEpoissonRatio)
-cC
+C
       CALL SEAICE_RECIP_RELAXTIME(
      I     damage,
      O     recip_rlx,
@@ -903,9 +829,7 @@ cC
      I     damageZ,
      O     recip_rlx,
      I     bi, bj, myTime, myIter, myThid )
-cC
-cC     step stress equations
-cC
+C
       DO J=1-OLy+1,sNy+OLy-1
        DO I=1-OLx+1,sNx+OLx-1
         denomZ(I,J) = 1. _d 0 /(1. _d 0+deltaTloc*recip_rlx(I,J))
@@ -915,12 +839,6 @@ cC
        DO I=1-OLx,sNx+OLx-1
         ep   = e11(i,j,bi,bj) + e22(i,j,bi,bj)
         em   = e11(i,j,bi,bj) - e22(i,j,bi,bj)
-c        zetaLoc = (SEAICEmebLambda + SEAICEmebMu) * press0(I,J,bi,bj)
-c        etaLoc  = SEAICEmebMu * press0(I,J,bi,bj)
-c        sigp    = maskInC(I,J,bi,bj)
-c     &       * (sigPlus (I,J,bi,bj)+deltaTloc*2.*zetaLoc*ep)*denom(I,J)
-c        sigm    = maskInC(I,J,bi,bj)
-c     &       * (sigMinus(I,J,bi,bj)+deltaTloc*2.* etaLoc*em)*denom(I,J)
         sigp    = maskInC(I,J,bi,bj)* (denom(I,J) * sigPlus(I,J,bi,bj)
      &       + 2.*zeta(I,J,bi,bj) *ep)
         sigm    = maskInC(I,J,bi,bj)* (denom(I,J) *sigMinus(I,J,bi,bj)
@@ -928,37 +846,13 @@ c     &       * (sigMinus(I,J,bi,bj)+deltaTloc*2.* etaLoc*em)*denom(I,J)
 C     recover sigma11 and sigma22
         sig11(I,J) = 0.5 _d 0 * ( sigp+sigm )
         sig22(I,J) = 0.5 _d 0 * ( sigp-sigm )
-CMB   averaging
         rhs12 = 2. * eta(I,J,bi,bj) * fldAtC(e12(:,:,bi,bj),i,j,bi,bj)
-C Calc-Stress-Options D1/D2
-C Option D1: averaging sigma12
-c        sig12C(I,J) = denom(I,J) * ( deltaTLoc*rhs12 +
-c     &       fldAtC(sigma12(:,:,bi,bj),i,j,bi,bj) )
-C Option D2: using uncoupled sigma12C
-c        sig12C(I,J) = denom(I,J)
-c     &   *(deltaTLoc*rhs12+sigma12C(I,J,bi,bj))
         sig12C(I,J) = rhs12+sigma12C(I,J,bi,bj)*denom(I,J)
        ENDDO
       ENDDO
       DO J=1-OLy+1,sNy+OLy-1
        DO I=1-OLx+1,sNx+OLx-1
-C     averaging to Z-points
-c        etaLoc = SEAICEmebMu *fldAtZ(press0(:,:,bi,bj),i,j,bi,bj)
-C DoubleParameters
-c        etaLoc = SEAICEmebMu *press0Z(I,J,bi,bj)
-c        rhs12 = 2. _d 0 * etaLoc * e12(I,J,bi,bj)
-!!!-> lines
-C Both lines do the same. No effect on symmtery
          rhs12 = 2. _d 0 * etaZ(I,J,bi,bj) * e12(I,J,bi,bj)
-c        rhs12 = 2. _d 0*fldAtZ(eta(:,:,bi,bj),i,j,bi,bj) * e12(I,J,bi,bj)
-C denom2-Options: F1/F2
-C Option F1: averaging whole denominator
-c        denom_z = fldAtZ(denom,i,j,bi,bj)
-C Option F2: averaging only recip_rlx
-CML        denom_z = 1. _d 0
-CML     &       /(1. _d 0+deltaTloc*fldAtZ(recip_rlx,i,j,bi,bj))
-C        sig12(I,J) = (sigma12(I,J,bi,bj)+deltaTLoc*rhs12)*denom_z
-C Option DoubleParameters
         sig12(I,J) = denomZ(I,J) * sigma12(I,J,bi,bj)+ rhs12
        ENDDO
       ENDDO
@@ -973,7 +867,6 @@ C Option DoubleParameters
       ENDIF
 
 # endif /* SEAICE_ALLOW_MEB */
-c#endif /* SEAICE_ALLOW_DYNAMICS and SEAICE_CGRID */
       RETURN
       END
 CBOP
@@ -1036,8 +929,6 @@ C                     sig11 and sig22, i.e. seaice_sigma1/2)
       _RL cosThetaMohr, slope, tanThetaCorr
       _RL c_inv(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL temp(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
-c     _RL fldAtC
-c     EXTERNAL fldAtC
 CEOP
       cosThetaMohr = 1.
       slope = SEAICEmohrCoulombSlope
@@ -1073,9 +964,6 @@ C     Compute error amplification
            temp(I,J) =SQRT((slope**2*sigI**2+(slope*sigI-c_inv(I,J))**2)
      &        /(c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI)**2)
           ENDIF
-CMB          IF ( sigI .NE. 0. _d 0 .AND. sigII .NE. 0. _d 0) THEN 
-CMB           WRITE(*,*), temp(I,J)
-CMB          ENDIF
          ENDIF
 #endif
 C     Correct the invariants
