@@ -868,6 +868,12 @@ C=============== dynamics ============
       diagCode  = 'SM      M1      '
       CALL DIAGNOSTICS_ADDTOLIST( diagNum,
      I    diagName, diagCode, diagUnits, diagTitle, 0, myThid )
+      diagName  = 'SIsigerr'
+      diagTitle = 'SEAICE error amplification ratio'
+      diagUnits = 'no units        '
+      diagCode  = 'SM      M1      '
+      CALL DIAGNOSTICS_ADDTOLIST( diagNum,
+     I    diagName, diagCode, diagUnits, diagTitle, 0, myThid )
 #endif /* SEAICE_ALLOW_DAMAGE */
 
 #ifdef SEAICE_ALLOW_DAMAGE

@@ -1021,6 +1021,10 @@ C
       INTEGER myIter
       INTEGER myThid
 
+#ifdef ALLOW_DIAGNOSTICS
+      LOGICAL  DIAGNOSTICS_IS_ON
+      EXTERNAL DIAGNOSTICS_IS_ON
+#endif /* ALLOW_DIAGNOSTICS */
 C     !LOCAL VARIABLES:
 C     === Local variables ===
 C     i,j :: loop indices
@@ -1029,12 +1033,15 @@ C     cosThetaMohr :: cosine of Mohr circle orientation (to reconstruct
 C                     sig11 and sig22, i.e. seaice_sigma1/2)
       INTEGER i,j
       _RL sigI, sigII, sigTmp, sigp, sigm
-      _RL cosThetaMohr, q_inv, temp
+      _RL cosThetaMohr, slope, tanThetaCorr
       _RL c_inv(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+      _RL temp(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
 c     _RL fldAtC
 c     EXTERNAL fldAtC
 CEOP
       cosThetaMohr = 1.
+      slope = SEAICEmohrCoulombSlope
+      tanThetaCorr = SEAICEtanThetaCorr
       IF ( SEAICEmebNormCorr ) THEN
 
        DO j=0,sNy
@@ -1050,6 +1057,27 @@ C     Compute uncorrected invariants
          sigI  = 0.5 _d 0 * seaice_sigma1(i,j,bi,bj)
          sigII = 0.5 _d 0 * SQRT( seaice_sigma2(i,j,bi,bj)**2
      &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2 )
+C     Compute error amplification
+#ifdef ALLOW_DIAGNOSTICS
+         temp(I,J) = 0. _d 0
+         IF (useCutoff(i,j,bi,bj)) THEN
+          IF (sigI .NE. sigII) THEN
+           temp(I,J) = SQRT((sigI**2 + sigII**2)/(sigII - sigI)**2) 
+          ENDIF
+         ELSE
+          c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
+     &        SQRT(SEAICEintFrictCoeff**2 + 1)
+     &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
+          IF ((c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI) 
+     &     .NE.0. _d 0) THEN
+           temp(I,J) =SQRT((slope**2*sigI**2+(slope*sigI-c_inv(I,J))**2)
+     &        /(c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI)**2)
+          ENDIF
+CMB          IF ( sigI .NE. 0. _d 0 .AND. sigII .NE. 0. _d 0) THEN 
+CMB           WRITE(*,*), temp(I,J)
+CMB          ENDIF
+         ENDIF
+#endif
 C     Correct the invariants
          IF ( .NOT. useCutoff(i,j,bi,bj) 
      &        .AND. sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
@@ -1080,7 +1108,10 @@ C     Update global variables
 C     Compute uncorrected invariants
          sigI  = 0.5 _d 0 * seaice_sigma1(i,j,bi,bj)
          sigII = 0.5 _d 0 * SQRT( seaice_sigma2(i,j,bi,bj)**2
-     &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2 )
+     &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2)
+C     Compute error amplification
+         temp(I,J) = SQRT((slope**2*sigI**2+sigII**2)
+     &        /(sigII+slope*sigI)**2) 
 C     Correct the invariants
          sigI = sigI  * dCrit(i,j,bi,bj)
          sigII = sigII * dCrit(i,j,bi,bj)
@@ -1095,9 +1126,9 @@ CMB         seaice_sigma2(i,j,bi,bj) = seaice_sigma2(i,j,bi,bj)
 CMB     &        * dCrit(i,j,bi,bj)
         ENDDO
        ENDDO
-
       ENDIF
-
+C     Fill diagnostics SIsigerr
+      CALL DIAGNOSTICS_FILL(temp,'SIsigerr',0,1,2,bi,bj,myThid)
 C     The rest is common to both methods.
       DO j=0,sNy
        DO i=0,sNx
@@ -1112,26 +1143,7 @@ CMB * maskInC(I,J,bi,bj)
         seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &       * dCritZ(i,j,bi,bj)
        ENDDO
-      ENDDO
-C Test to check of stress states on and under yield curve
-CMB      DO j=1,sNy
-CMB       DO i=1,sNx
-CMB         sigp   = seaice_sigma1(i,j,bi,bj)
-CMB         sigm   = seaice_sigma2(i,j,bi,bj)
-CMB         sigTmp = SQRT(sigm*sigm+4.*seaice_sigma12C(i,j,bi,bj)**2)
-CMB         sigI   = 0.5 _d 0 * sigp
-CMB         sigII  = 0.5 _d 0 * sigTmp
-CMB         q_inv = SEAICEmohrCoulombSlope
-CMB         c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
-CMB     &      SQRT(SEAICEintFrictCoeff**2 + 1)
-CMB         temp = sigII + q_inv * sigI
-CMB         IF ( dCrit(i,j,bi,bj) .LT. 1. _d 0 .AND.
-CMB     &     maskInC(i,j,bi,bj) .GT. 0. _d 0 ) THEN
-CMB          PRINT*, j, i, dCrit(i,j,bi,bj), temp, c_inv(I,J),
-CMB     &      ( temp .GT. c_inv(I,J) ) , sigI, sigII
-CMB         ENDIF
-CMB       ENDDO
-CMB      ENDDO      
+      ENDDO     
 # endif /* SEAICE_ALLOW_DAMAGE */
 #endif /* SEAICE_ALLOW_DYNAMICS and SEAICE_CGRID */
 
