@@ -998,8 +998,11 @@ C     Compute uncorrected invariants
          sigII = 0.5 _d 0 * SQRT( seaice_sigma2(i,j,bi,bj)**2
      &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2)
 C     Compute error amplification
-         temp(I,J) = SQRT((slope**2*sigI**2+sigII**2)
+         temp(I,J) = 0. _d 0
+         IF ((sigII+slope*sigI) .NE. 0. _d 0) THEN
+          temp(I,J) = SQRT((slope**2*sigI**2+sigII**2)
      &        /(sigII+slope*sigI)**2) 
+         ENDIF
 C     Correct the invariants
          sigI = sigI  * dCrit(i,j,bi,bj)
          sigII = sigII * dCrit(i,j,bi,bj)
