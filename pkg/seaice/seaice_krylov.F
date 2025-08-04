@@ -435,6 +435,8 @@ C     with the damage, this time return result in global fields
        CALL SEAICE_UPDATE_DAMAGE( .FALSE., myTime, myIter, myThid )
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
+C       Fill diagnostics SIdcrit
+        CALL DIAGNOSTICS_FILL(dCrit,'SIdcrit ',0,1,2,bi,bj,myThid)
          CALL SEAICE_MEB_CALC_SIGMAP(
      I        e11, e22, e12, press0, damage, dCrit, AREA,
      I        damageZ, dCritZ, press0Z, eta, etaZ, zeta, zetaZ,
