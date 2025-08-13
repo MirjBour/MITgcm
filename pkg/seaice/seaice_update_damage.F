@@ -445,7 +445,7 @@ CBOP
 C     !ROUTINE: SEAICE_RECIP_RELAXTIME
 C     !INTERFACE:
       SUBROUTINE SEAICE_RECIP_RELAXTIME(
-     I     damage,
+     I     dam,
      O     recip_rlx,
      I     bi, bj, myTime, myIter, myThid )
 
@@ -473,7 +473,7 @@ C     === Routine arguments ===
 C     myTime :: Simulation time
 C     myIter :: Simulation timestep number
 C     myThid :: my Thread Id. number
-      _RL damage   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
+      _RL dam   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL recip_rlx(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       INTEGER bi, bj
       _RL     myTime
@@ -498,14 +498,12 @@ C     Maxwell term
         recip_rlx(i,j) = 0. _d 0
 C     faster for damage**(1-SEAICEdamageParm), but requires damage > 0
 C     This is probably also a place for regularisation?
-CML        IF ( damage(i,j,bi,bj) .GT. SEAICEdamageMin )
+CML        IF ( dam(i,j,bi,bj) .GT. SEAICEdamageMin )
 CML     &       recip_rlx(i,j) = recip_relaxTime
-CML     &       * EXP((1.-SEAICEdamageParm)*LOG(damage(i,j,bi,bj)))
-        IF ( damage(i,j,bi,bj) .GT. SEAICEdamageMin )
+CML     &       * EXP((1.-SEAICEdamageParm)*LOG(dam(i,j,bi,bj)))
+        IF ( dam(i,j,bi,bj) .GT. SEAICEdamageMin )
      &       recip_rlx(i,j) = recip_relaxTime
-     &       *damage(i,j,bi,bj)**(1.-SEAICEdamageParm)
-        damage(i,j,bi,bj) = damage(i,j,bi,bj)
-        recip_rlx(i,j)    = recip_rlx(i,j)
+     &       *dam(i,j,bi,bj)**(1.-SEAICEdamageParm)
        ENDDO
       ENDDO
 
@@ -516,8 +514,8 @@ CBOP
 C     !ROUTINE: SEAICE_MEB_UPDATE_RHS
 C     !INTERFACE:
       SUBROUTINE SEAICE_MEB_UPDATE_RHS(
-     I     damage, sigPlus, sigMinus, sigma12,
-     I     damageZ,
+     I     dam, sigPlus, sigMinus, sigma12,
+     I     damZ,
      U     uIceRHS, vIceRHS,
      I     bi, bj, myTime, myIter, myThid )
 
@@ -540,13 +538,14 @@ C     === Global variables ===
 #include "GRID.h"
 #include "SEAICE_SIZE.h"
 #include "SEAICE_PARAMS.h"
+#include "SEAICE.h"
 C     !INPUT/OUTPUT PARAMETERS:
 C     === Routine arguments ===
 C     myTime :: Simulation time
 C     myIter :: Simulation timestep number
 C     myThid :: my Thread Id. number
-      _RL damage  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL damageZ  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
+      _RL dam  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
+      _RL damZ  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL sigPlus (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL sigMinus(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL sigma12 (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -576,7 +575,7 @@ CEOP
 C     add stress divergence of previous timestep
       deltaTloc = SEAICE_deltaTdyn
       CALL SEAICE_RECIP_RELAXTIME(
-     I     damage,
+     I     dam,
      O     recip_rlx,
      I     bi, bj, myTime, myIter, myThid )
 C     recover sigma11 and sigma22 and scale by denominator
@@ -584,15 +583,22 @@ C     (1 + dt*Elasiticy/viscosity)
       DO J=1-OLy,sNy+OLy
        DO I=1-OLx,sNx+OLx
         denom(I,J) = 1. _d 0 /(1. _d 0+deltaTloc*recip_rlx(I,J))
+        IF (AREA(i,j,bi,bj) .EQ. 0. _d 0) THEN
+          denom(I,J) = 0. _d 0
+        ENDIF
        ENDDO
       ENDDO
       CALL SEAICE_RECIP_RELAXTIME(
-     I     damageZ,
+     I     damZ,
      O     recip_rlx,
      I     bi, bj, myTime, myIter, myThid )
       DO J=1-OLy+1,sNy+OLy-1
        DO I=1-OLx+1,sNx+OLx-1
         denomZ(I,J) = 1. _d 0 /(1. _d 0+deltaTloc*recip_rlx(I,J))
+        IF ((AREA(i,j,bi,bj)*AREA(i-1,j,bi, bj)*AREA(i,j-1,bi,bj)
+     &    *AREA(i-1,j-1,bi,bj)) .EQ. 0. _d 0) THEN
+          denomZ(I,J) = 0. _d 0
+        ENDIF
        ENDDO
       ENDDO
       DO j=0,sNy

@@ -68,6 +68,7 @@ C     === Local variables ===
 C     i,j    :: Loop counters
 C     bi,bj  :: tile counters
       INTEGER i, j, bi, bj
+CMB      , ig, jg
       _RL phiSurf(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL mask_uice, mask_vice
 #ifdef SEAICE_ALLOW_DAMAGE
@@ -670,8 +671,8 @@ C     PRESS = PRESS(n-1), n = number of sub-cycling steps
              ENDDO
             ENDDO
            ELSE
-            DO j=1,sNy
-             DO i=1,sNx
+            DO j=1,sNy+1
+             DO i=1,sNx+1
               sig12(i,j) = 0.25 _d 0 *
      &           ( seaice_sigma12(i  ,j  ,bi,bj)
      &           + seaice_sigma12(i+1,j  ,bi,bj)
@@ -680,14 +681,12 @@ C     PRESS = PRESS(n-1), n = number of sub-cycling steps
              ENDDO
             ENDDO
            ENDIF
-           DO j=1,sNy
-            DO i=1,sNx
+           DO j=0,sNy
+CMB            jg = myYGlobalLo-1+(bj-1)*sNy+j
+            DO i=0,sNx
+CMB             ig = myXGlobalLo-1+(bi-1)*sNx+i
              sigp = seaice_sigma1(i,j,bi,bj)
              sigm = seaice_sigma2(i,j,bi,bj)
-C Important because sig12 values end up on water grid cells by
-C averaging.
-             IF (AREA(I,J,bi,bj) .EQ. 0. _d 0 )
-     &         sig12(i,j) = 0. _d 0
              sigTmp = SQRT( sigm*sigm + 4. _d 0*sig12(i,j)*sig12(i,j) )
              recip_prs = 0. _d 0
 c             IF ( SEAICEuseMEB) THEN
@@ -700,9 +699,6 @@ c             ENDIF
              sig2(i,j) = 0.5 _d 0*(sigp - sigTmp)*recip_prs
              sig11(i,j) = 0.5 _d 0*(sigp+sigm)
              sig22(i,j) = 0.5 _d 0*(sigp-sigm)
-C Careful now I write sig12 on Z points!
-CMB             sig11(i,j) = sigp
-CMB             sig22(i,j) = sigm
             ENDDO
            ENDDO
           ELSE
@@ -737,11 +733,9 @@ c     &            recip_prs = 1. _d 0 / press0(i,j,bi,bj)
              sig2(i,j) = 0.5 _d 0*(sigp - sigTmp)*recip_prs
              sig11(i,j) = 0.5 _d 0*(sigp+sigm)
              sig22(i,j) = 0.5 _d 0*(sigp-sigm)
-CMB             sig11(i,j) = sigp
-CMB             sig22(i,j) = sigm
             ENDDO
            ENDDO
-          ENDIF
+          ENDIF 
           CALL DIAGNOSTICS_FILL(sig1,'SIsig1  ',0,1,2,bi,bj,myThid)
           CALL DIAGNOSTICS_FILL(sig2,'SIsig2  ',0,1,2,bi,bj,myThid)
           CALL DIAGNOSTICS_FILL(sig11,'SIsig11 ',0,1,2,bi,bj,myThid)
