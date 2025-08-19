@@ -117,7 +117,7 @@ C     no damage means damage = 1
           dCrit    (i,j,bi,bj) = 1. _d 0
           dCritZ   (i,j,bi,bj) = 1. _d 0
           seaice_sigma12C   (i,j,bi,bj) = 0. _d 0
-          useCutoff(i,j,bi,bj) = .FALSE. 
+          usedCorr(i,j,bi,bj) = 0. _d 0 
 #endif /* SEAICE_ALLOW_DAMAGE */
 #else /* SEAICE_CGRID */
           uIceC(i,j,bi,bj)   = 0. _d 0

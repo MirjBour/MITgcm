@@ -109,15 +109,15 @@ C     betaFacU/V     :: analog betaFacP1U/V
       _RL fldAtZ, fldAtC
       _RL TENSILE_FAILURE
       _RL MC_FAILURE
-      _RL MC_FAILURE_INV
+C      _RL MC_FAILURE_INV
 C      _RL MC_CUTOFF_INV
-      _RL MC_NORM_FAILURE
+C      _RL MC_NORM_FAILURE
       EXTERNAL fldAtZ, fldAtC
       EXTERNAL TENSILE_FAILURE
       EXTERNAL MC_FAILURE
-      EXTERNAL MC_FAILURE_INV
+C      EXTERNAL MC_FAILURE_INV
 C      EXTERNAL MC_CUTOFF_INV
-      EXTERNAL MC_NORM_FAILURE
+C      EXTERNAL MC_NORM_FAILURE
 
 CEOP
 
@@ -223,8 +223,10 @@ CMB          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)
 CMB          damageCrit = TENSILE_FAILURE(sig2,sig1,sigmaT(I,J),damageCrit)
           IF ( SEAICEmebNormCorr .AND.
      &         sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
-           damageCrit = MC_NORM_FAILURE(sigI, sigII, q_inv, c_inv(I,J),
-     &          SEAICEtanThetaCorr, damageCrit)
+           CALL MC_NORM_FAILURE(
+     I     sigI, sigII, q_inv, c_inv(I,J), SEAICEtanThetaCorr, 
+     O     usedCorr(I,J,bi,bj), 
+     U     damageCrit)
           ELSE
 C     keep in mind that sigmaC < 0 so that the following criterion catches
 C     the case when sig2 is below sigmaC+q*sig1
@@ -232,13 +234,15 @@ CMB           damageCrit = MC_FAILURE(sig1,sig2,q,sigmaC(I,J),damageCrit)
 C     or above sigmaC+q*sig2
 CMB           damageCrit = MC_FAILURE(sig2,sig1,q,sigmaC(I,J),damageCrit)
 C     should be used to compare with Plante et. al (2019)
-           damageCrit = MC_FAILURE_INV(sigI, sigII, q_inv, c_inv(I,J),
-     &          damageCrit)
+           CALL MC_FAILURE_INV(
+     I     sigI, sigII, q_inv, c_inv(I,J),
+     O     usedCorr(I,J,bi,bj), 
+     U     damageCrit)
           ENDIF
           IF ( sigMax(I,J) .GT. 0. _d 0) 
      &          CALL MC_CUTOFF_INV(
      I          sigI, sigII, sigMax(I,J),
-     O          useCutoff(I,J,bi,bj),
+     O          usedCorr(I,J,bi,bj),
      U          damageCrit)
 C     critical damage cannot be below zero (eq 39 in mebdoc.tex)
           damageCrit = MAX(damageCrit, 0. _d 0)
@@ -339,56 +343,65 @@ CEOP
 CBOP
 C     !ROUTINE: MC_FAILURE_INV
 C     !INTERFACE:
-      _RL FUNCTION MC_FAILURE_INV(sigI,sigII,slope,chsn,damageCrit)
+      SUBROUTINE MC_FAILURE_INV(sigI,sigII,slope,chsn,usedCorr,dCrit)
       IMPLICIT NONE
-C     compute Mohr-Coulomb failure criterion and updage damageCrit
-      _RL sigI, sigII, slope, chsn, damageCrit
+C     compute Mohr-Coulomb failure criterion and update damageCrit
+      _RL sigI, sigII, slope, chsn, usedCorr, dCrit
 CEOP
       _RL denom
       denom = sigII + slope*sigI
-      mc_failure_inv = damageCrit
       IF ( denom .GT. chsn ) THEN
-       mc_failure_inv = MIN(damageCrit,chsn/denom)
+C       dCrit = MIN(dCrit,chsn/denom)
+       IF (dCrit .GT. chsn/denom) THEN
+        dCrit = chsn/denom
+        usedCorr = 1. _d 0
+       ENDIF
       ENDIF
       RETURN
       END
 CBOP
 C     !ROUTINE: MC_CUTOFF_INV
 C     !INTERFACE:
-      SUBROUTINE MC_CUTOFF_INV(sigI,sigII,cutoff,useCo,damageCrit)
+      SUBROUTINE MC_CUTOFF_INV(sigI,sigII,cutoff,usedCorr,dCrit)
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
-      _RL sigI, sigII, cutoff, damageCrit
-      LOGICAL useCo
+      _RL sigI, sigII, cutoff, usedCorr, dCrit
 CEOP
       _RL denom
       denom = sigII - sigI
-      useCo = .FALSE.
-      IF ( denom .GT. cutoff ) THEN
+C      useCo = .FALSE.
+      IF ( denom .GT. cutoff .AND. dCrit .GT. denom) THEN
        denom = cutoff/denom
-       useCo = damageCrit .GT. denom
-       damageCrit = MIN(damageCrit, denom)
+C      useCo = dCrit .GT. denom
+C       dCrit = MIN(dCrit, denom)
+C       IF (dCrit .GT. denom) THEN
+        dCrit = denom
+        usedCorr = 3. _d 0
+C       ENDIF 
       ENDIF
       RETURN
       END
 CBOP
 C     !ROUTINE: MC_NORM_FAILURE
 C     !INTERFACE:
-      _RL FUNCTION MC_NORM_FAILURE ( sigI, sigII, slope, chsn,
-     &     tanThetaCorr, damageCrit )
+      SUBROUTINE MC_NORM_FAILURE ( sigI, sigII, slope, chsn,
+     &     tanThetaCorr, usedCorr, dCrit )
       IMPLICIT NONE
 C     compute Mohr-Coulomb failure criterion and updage damageCrit
 C     following Plante and Tremblay (2021)
 C     chsn :: cohesion
-      _RL sigI, sigII, slope, chsn, tanThetaCorr, damageCrit
+      _RL sigI, sigII, slope, chsn, tanThetaCorr, usedCorr, dCrit
 CEOP
       _RL denom, num
 C
       num = chsn + slope * ( sigII*tanThetaCorr - sigI )
       denom = (1. _d 0 + slope*tanThetaCorr)*sigII
-      mc_norm_failure = damageCrit
-      IF ( denom .NE. 0. _d 0 ) THEN
-       mc_norm_failure = MIN(damageCrit, num/denom)
+      IF ( denom .NE. 0. _d 0 .AND. dCrit .GT. num/denom) THEN
+C       dCrit = MIN(dCrit, num/denom)
+C       IF (dCrit .GT. num/denom) THEN
+        dCrit = num/denom
+        usedCorr = 2. _d 0
+C       ENDIF
       ENDIF
       RETURN
       END
@@ -957,7 +970,7 @@ C     Compute uncorrected invariants
 C     Compute error amplification
 #ifdef ALLOW_DIAGNOSTICS
          temp(I,J) = 0. _d 0
-         IF (useCutoff(i,j,bi,bj)) THEN
+         IF (usedCorr(i,j,bi,bj) .EQ. 3. _d 0) THEN
           IF (sigI .NE. sigII) THEN
            temp(I,J) = SQRT((sigI**2 + sigII**2)/(sigII - sigI)**2) 
           ENDIF
@@ -965,16 +978,17 @@ C     Compute error amplification
           c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
      &        SQRT(SEAICEintFrictCoeff**2 + 1)
      &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
-          IF ((c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI) 
-     &     .NE.0. _d 0) THEN
+          IF ((usedCorr(i,j,bi,bj) .EQ. 2. _d 0) .AND.
+     &     ((c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI) .NE. 
+     &     0. _d 0)) THEN
            temp(I,J) =SQRT((slope**2*sigI**2+(slope*sigI-c_inv(I,J))**2)
      &        /(c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI)**2)
           ENDIF
          ENDIF
 #endif
 C     Correct the invariants
-         IF ( .NOT. useCutoff(i,j,bi,bj) 
-     &        .AND. sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
+         IF ( (usedCorr(i,j,bi,bj) .NE. 3. _d 0) 
+     &        .AND. (sigI .LT. SEAICEtanThetaCorr*sigII) ) THEN
           sigI  = sigI - sigII*(1. _d 0 - dCrit(i,j,bi,bj))
      &         *SEAICEtanThetaCorr
          ELSE
@@ -985,6 +999,18 @@ C     Update global variables
          seaice_sigma1(i,j,bi,bj) = 2. _d 0 * sigI
          seaice_sigma2(i,j,bi,bj) = SIGN(
      &        2. _d 0 * sigII * cosThetaMohr, seaice_sigma2(i,j,bi,bj) )
+#ifdef ALLOW_DIAGNOSTICS
+         temp(I,J) = 0. _d 0
+         IF ((usedCorr(i,j,bi,bj) .EQ. 3. _d 0) .AND. (sigI .NE. sigII))
+     &     THEN
+           temp(I,J) = SQRT((sigI**2 + sigII**2)/(sigII - sigI)**2) 
+         ENDIF
+         IF ((usedCorr(i,j,bi,bj) .EQ. 2. _d 0) .AND.
+     &     ((sigII+slope*sigI) .NE. 0. _d 0)) THEN
+           temp(I,J) =SQRT((sigII**2+(slope*sigI)**2)
+     &      /(sigII+slope*sigI)**2)
+         ENDIF
+#endif
         ENDDO
        ENDDO
 
