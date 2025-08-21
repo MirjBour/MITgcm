@@ -970,17 +970,24 @@ C     Compute uncorrected invariants
 C     Compute error amplification
 #ifdef ALLOW_DIAGNOSTICS
          temp(I,J) = 0. _d 0
-         IF (usedCorr(i,j,bi,bj) .EQ. 3. _d 0) THEN
-          IF (sigI .NE. sigII) THEN
+C     Correction: Cut-Off     
+         IF ((usedCorr(i,j,bi,bj) .EQ. 3. _d 0) .AND. 
+     &    (sigI .NE. sigII))    THEN
            temp(I,J) = SQRT((sigI**2 + sigII**2)/(sigII - sigI)**2) 
-          ENDIF
-         ELSE
-          c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
+         ENDIF
+C     Correction: To the origin             
+         IF ((usedCorr(i,j,bi,bj) .EQ. 1. _d 0) .AND.
+     &     ((sigII+slope*sigI) .NE. 0. _d 0)) THEN
+           temp(I,J) =SQRT((sigII**2+(slope*sigI)**2)
+     &      /(sigII+slope*sigI)**2)
+         ENDIF
+C     Correction: Generalized Stress Correction         
+         IF (usedCorr(i,j,bi,bj) .EQ. 2. _d 0) THEN
+           c_inv(I,J) = cohesion(I,J,bi,bj) * HEFF(I,J,bi,bj)/
      &        SQRT(SEAICEintFrictCoeff**2 + 1)
      &        *EXP(-SEAICE_cStar*(SEAICE_area_max-AREA(i,j,bi,bj)))
-          IF ((usedCorr(i,j,bi,bj) .EQ. 2. _d 0) .AND.
-     &     ((c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI) .NE. 
-     &     0. _d 0)) THEN
+          IF ((c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI) .NE. 
+     &     0. _d 0) THEN
            temp(I,J) =SQRT((slope**2*sigI**2+(slope*sigI-c_inv(I,J))**2)
      &        /(c_inv(I,J)+slope*tanThetaCorr*sigII-slope*sigI)**2)
           ENDIF
@@ -999,21 +1006,8 @@ C     Update global variables
          seaice_sigma1(i,j,bi,bj) = 2. _d 0 * sigI
          seaice_sigma2(i,j,bi,bj) = SIGN(
      &        2. _d 0 * sigII * cosThetaMohr, seaice_sigma2(i,j,bi,bj) )
-#ifdef ALLOW_DIAGNOSTICS
-         temp(I,J) = 0. _d 0
-         IF ((usedCorr(i,j,bi,bj) .EQ. 3. _d 0) .AND. (sigI .NE. sigII))
-     &     THEN
-           temp(I,J) = SQRT((sigI**2 + sigII**2)/(sigII - sigI)**2) 
-         ENDIF
-         IF ((usedCorr(i,j,bi,bj) .EQ. 2. _d 0) .AND.
-     &     ((sigII+slope*sigI) .NE. 0. _d 0)) THEN
-           temp(I,J) =SQRT((sigII**2+(slope*sigI)**2)
-     &      /(sigII+slope*sigI)**2)
-         ENDIF
-#endif
         ENDDO
        ENDDO
-
       ELSE
 
        DO j=0,sNy
@@ -1029,12 +1023,21 @@ C     Compute uncorrected invariants
          sigI  = 0.5 _d 0 * seaice_sigma1(i,j,bi,bj)
          sigII = 0.5 _d 0 * SQRT( seaice_sigma2(i,j,bi,bj)**2
      &        + 4. _d 0 * seaice_sigma12C(i,j,bi,bj)**2)
-C     Compute error amplification
+C     Comphte error amplification
+#ifdef ALLOW_DIAGNOSTICS
          temp(I,J) = 0. _d 0
-         IF ((sigII+slope*sigI) .NE. 0. _d 0) THEN
-          temp(I,J) = SQRT((slope**2*sigI**2+sigII**2)
-     &        /(sigII+slope*sigI)**2) 
+C     Correction: Cut-Off     
+         IF ((usedCorr(i,j,bi,bj) .EQ. 3. _d 0) .AND. 
+     &    (sigI .NE. sigII))    THEN
+           temp(I,J) = SQRT((sigI**2 + sigII**2)/(sigII - sigI)**2) 
          ENDIF
+C     Correction: To the origin             
+         IF ((usedCorr(i,j,bi,bj) .EQ. 1. _d 0) .AND.
+     &     ((sigII+slope*sigI) .NE. 0. _d 0)) THEN
+           temp(I,J) =SQRT((sigII**2+(slope*sigI)**2)
+     &      /(sigII+slope*sigI)**2)
+         ENDIF
+#endif
 C     Correct the invariants
          sigI = sigI  * dCrit(i,j,bi,bj)
          sigII = sigII * dCrit(i,j,bi,bj)
