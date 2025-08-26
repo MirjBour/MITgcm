@@ -874,6 +874,12 @@ C=============== dynamics ============
       diagCode  = 'SM      M1      '
       CALL DIAGNOSTICS_ADDTOLIST( diagNum,
      I    diagName, diagCode, diagUnits, diagTitle, 0, myThid )
+      diagName  = 'SIstcorr'
+      diagTitle = 'SEAICE stress correction path using MEB rehology'
+      diagUnits = 'no units        '
+      diagCode  = 'SM      M1      '
+      CALL DIAGNOSTICS_ADDTOLIST( diagNum,
+     I    diagName, diagCode, diagUnits, diagTitle, 0, myThid )
       diagName  = 'SIdcrit '
       diagTitle = 'SEAICE factor to correct stresses on yield curve'
       diagUnits = 'no units        '

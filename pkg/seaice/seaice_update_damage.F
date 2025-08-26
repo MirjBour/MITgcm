@@ -1055,6 +1055,7 @@ CMB     &        * dCrit(i,j,bi,bj)
       ENDIF
 C     Fill diagnostics SIsigerr
       CALL DIAGNOSTICS_FILL(temp,'SIsigerr',0,1,2,bi,bj,myThid)
+      CALL DIAGNOSTICS_FILL(usedCorr,'SIstcorr',0,1,2,bi,bj,myThid)
 C     The rest is common to both methods.
       DO j=0,sNy
        DO i=0,sNx
