@@ -433,7 +433,6 @@ C     Elastic-Viscous-Plastic solver, following Hunke (2001)
          CALL SEAICE_EVP( myTime, myIter, myThid )
         ENDIF
 #endif /* SEAICE_ALLOW_EVP */
-
         IF ( SEAICEuseLSR ) THEN
 C     Picard solver with LSR scheme (Zhang-J/Hibler 1997), ported to a C-grid
          CALL SEAICE_LSR( myTime, myIter, myThid )
@@ -523,6 +522,20 @@ c in open water areas (drift of zero thickness ice)
         ENDDO
        ENDDO
       ENDIF
+      DO bj=myByLo(myThid),myByHi(myThid)
+       DO bi=myBxLo(myThid),myBxHi(myThid)
+        DO j=1-OLy,sNy+OLy
+         DO i=1-OLx,sNx+OLx
+          IF ( areaW .LE. 0. _d 0 ) THEN
+            uIce(i,j,bi,bj) = 0. _d 0
+          ENDIF
+          IF ( areaS .LE. 0. _d 0 ) THEN
+            vIce(i,j,bi,bj) = 0. _d 0
+          ENDIF
+         ENDDO
+        ENDDO
+       ENDDO
+      ENDDO    
 #endif /* SEAICE_ALLOW_CLIPVELS */
 #endif /* SEAICE_ALLOW_DYNAMICS */
 
