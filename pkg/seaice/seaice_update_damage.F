@@ -221,6 +221,7 @@ CML          IF ( SEAICEuseTensileCutoff .AND.
 CML     &         sig1 .GT. 0. _d 0 .AND. sig2 .GT. sigmaT(I,J) )
 CMB          damageCrit = TENSILE_FAILURE(sig1,sig2,sigmaT(I,J),damageCrit)
 CMB          damageCrit = TENSILE_FAILURE(sig2,sig1,sigmaT(I,J),damageCrit)
+          usedCorr(I,J,bi,bj) = 0. _d 0  
           IF ( SEAICEmebNormCorr .AND.
      &         sigI .LT. SEAICEtanThetaCorr*sigII ) THEN
            CALL MC_NORM_FAILURE(
