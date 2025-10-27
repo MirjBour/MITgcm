@@ -521,22 +521,24 @@ c in open water areas (drift of zero thickness ice)
          ENDDO
         ENDDO
        ENDDO
-      ENDIF
+      ENDIF    
+#endif /* SEAICE_ALLOW_CLIPVELS */
       DO bj=myByLo(myThid),myByHi(myThid)
        DO bi=myBxLo(myThid),myBxHi(myThid)
         DO j=1-OLy,sNy+OLy
          DO i=1-OLx,sNx+OLx
+          areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+          areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
           IF ( areaW .LE. 0. _d 0 ) THEN
             uIce(i,j,bi,bj) = 0. _d 0
           ENDIF
-          IF ( areaS .LE. 0. _d 0 ) THEN
+          IF (areaS .LE. 0. _d 0) THEN
             vIce(i,j,bi,bj) = 0. _d 0
           ENDIF
          ENDDO
         ENDDO
        ENDDO
-      ENDDO    
-#endif /* SEAICE_ALLOW_CLIPVELS */
+      ENDDO
 #endif /* SEAICE_ALLOW_DYNAMICS */
 
 #ifdef ALLOW_DIAGNOSTICS
