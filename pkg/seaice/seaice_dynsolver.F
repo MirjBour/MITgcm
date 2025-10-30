@@ -444,7 +444,7 @@ C     Picard solver with LSR scheme (Zhang-J/Hibler 1997), ported to a C-grid
 # else
         IF ( SEAICEuseKrylov ) THEN
 C     Picard solver with Matrix-free Krylov solver (Lemieux et al. 2008)
-         CALL SEAICE_KRYLOV( myTime, myIter, myThid )
+         CALL SEAICE_KRYLOV( myTime, myIter, myThid )          
         ENDIF
 # endif /*  ALLOW_AUTODIFF */
 #endif /* SEAICE_ALLOW_KRYLOV */
@@ -523,22 +523,22 @@ c in open water areas (drift of zero thickness ice)
        ENDDO
       ENDIF    
 #endif /* SEAICE_ALLOW_CLIPVELS */
-      DO bj=myByLo(myThid),myByHi(myThid)
-       DO bi=myBxLo(myThid),myBxHi(myThid)
-        DO j=1-OLy,sNy+OLy
-         DO i=1-OLx,sNx+OLx
-          areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
-          areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
-          IF ( areaW .LE. 0. _d 0 ) THEN
-            uIce(i,j,bi,bj) = 0. _d 0
-          ENDIF
-          IF (areaS .LE. 0. _d 0) THEN
-            vIce(i,j,bi,bj) = 0. _d 0
-          ENDIF
-         ENDDO
-        ENDDO
-       ENDDO
-      ENDDO
+C      DO bj=myByLo(myThid),myByHi(myThid)
+C       DO bi=myBxLo(myThid),myBxHi(myThid)
+C        DO j=1-OLy,sNy+OLy
+C         DO i=1-OLx,sNx+OLx
+C          areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C          areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C          IF ( areaW .LE. 0. _d 0 ) THEN
+C            uIce(i,j,bi,bj) = 0. _d 0
+C          ENDIF
+C          IF (areaS .LE. 0. _d 0) THEN
+C            vIce(i,j,bi,bj) = 0. _d 0
+C          ENDIF
+C         ENDDO
+C        ENDDO
+C       ENDDO
+C      ENDDO
 #endif /* SEAICE_ALLOW_DYNAMICS */
 
 #ifdef ALLOW_DIAGNOSTICS
