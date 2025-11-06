@@ -319,22 +319,22 @@ C     start Krylov iteration (FGMRES)
 
         krylovConverged = .FALSE.
         FGMRESeps = krylovLinTol * picardResidual  
-        DO bj=myByLo(myThid),myByHi(myThid)
-         DO bi=myBxLo(myThid),myBxHi(myThid)
-          DO j=1-OLy,sNy+OLy
-           DO i=1-OLx,sNx+OLx
-            areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
-            areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
-            IF ( areaW .LE. 0. _d 0 ) THEN
-             uIce(i,j,bi,bj) = 0. _d 0
-            ENDIF
-            IF (areaS .LE. 0. _d 0) THEN
-              vIce(i,j,bi,bj) = 0. _d 0
-            ENDIF
-           ENDDO
-          ENDDO
-         ENDDO
-        ENDDO             
+C        DO bj=myByLo(myThid),myByHi(myThid)
+C         DO bi=myBxLo(myThid),myBxHi(myThid)
+C          DO j=1-OLy,sNy+OLy
+C           DO i=1-OLx,sNx+OLx
+C            areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C            areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C            IF ( areaW .LE. 0. _d 0 ) THEN
+C             uIce(i,j,bi,bj) = 0. _d 0
+C            ENDIF
+C            IF (areaS .LE. 0. _d 0) THEN
+C              vIce(i,j,bi,bj) = 0. _d 0
+C            ENDIF
+C           ENDDO
+C          ENDDO
+C         ENDDO
+C        ENDDO             
         CALL SEAICE_MAP2VEC(nVec,uIce,vIce,sol,.TRUE.,myThid)
         CALL SEAICE_MAP2VEC(nVec,uIceRHS,vIceRHS,rhs,.TRUE.,myThid)
         DO bj=myByLo(myThid),myByHi(myThid)
@@ -382,22 +382,22 @@ C     Call preconditioner
      U         uWork, vWork,
      I         zeta, eta, etaZ, zetaZ, dwatn,
      I         picardIter, krylovIter, myTime, myIter, myThid )
-          DO bj=myByLo(myThid),myByHi(myThid)
-           DO bi=myBxLo(myThid),myBxHi(myThid)
-            DO j=1-OLy,sNy+OLy
-             DO i=1-OLx,sNx+OLx
-              areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
-              areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
-              IF ( areaW .LE. 0. _d 0 ) THEN
-                uWork(i,j,bi,bj) = 0. _d 0
-              ENDIF
-              IF (areaS .LE. 0. _d 0) THEN
-                vWork(i,j,bi,bj) = 0. _d 0
-              ENDIF
-             ENDDO
-            ENDDO
-           ENDDO
-          ENDDO
+C          DO bj=myByLo(myThid),myByHi(myThid)
+C           DO bi=myBxLo(myThid),myBxHi(myThid)
+C            DO j=1-OLy,sNy+OLy
+C             DO i=1-OLx,sNx+OLx
+C              areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C              areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C              IF ( areaW .LE. 0. _d 0 ) THEN
+C                uWork(i,j,bi,bj) = 0. _d 0
+C              ENDIF
+C              IF (areaS .LE. 0. _d 0) THEN
+C                vWork(i,j,bi,bj) = 0. _d 0
+C              ENDIF
+C             ENDDO
+C            ENDDO
+C           ENDDO
+C          ENDDO
          ELSEIF (iCode.GE.2) THEN
 C     Compute lhs of equations (A*x)
           CALL SEAICE_CALC_STRAINRATES(
