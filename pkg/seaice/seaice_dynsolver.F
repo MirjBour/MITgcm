@@ -535,7 +535,7 @@ c in open water areas (drift of zero thickness ice)
          ENDDO
         ENDDO
        ENDDO
-      ENDDO    
+      ENDDO
 #endif /* SEAICE_ALLOW_CLIPVELS */
 #endif /* SEAICE_ALLOW_DYNAMICS */
 
@@ -678,11 +678,13 @@ C     for EVP compute principle stress components from recent
 C     stress state and normalize with latest
 C     PRESS = PRESS(n-1), n = number of sub-cycling steps
            IF ( SEAICEuseMEB ) THEN
+#ifdef SEAICE_ALLOW_MEB
             DO j=1,sNy
              DO i=1,sNx
               sig12(i,j) = seaice_sigma12C(i,j,bi,bj)
              ENDDO
             ENDDO
+#endif
            ELSE
             DO j=1,sNy+1
              DO i=1,sNx+1
@@ -748,7 +750,7 @@ c     &            recip_prs = 1. _d 0 / press0(i,j,bi,bj)
              sig22(i,j) = 0.5 _d 0*(sigp-sigm)
             ENDDO
            ENDDO
-          ENDIF 
+          ENDIF
           CALL DIAGNOSTICS_FILL(sig1,'SIsig1  ',0,1,2,bi,bj,myThid)
           CALL DIAGNOSTICS_FILL(sig2,'SIsig2  ',0,1,2,bi,bj,myThid)
           CALL DIAGNOSTICS_FILL(sig11,'SIsig11 ',0,1,2,bi,bj,myThid)
