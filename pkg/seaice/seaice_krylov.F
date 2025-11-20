@@ -81,6 +81,7 @@ C
       LOGICAL picardConverged, krylovConverged
       LOGICAL writeNow
       CHARACTER*(MAX_LEN_MBUF) msgBuf
+      _RL areaW, areaS
 
       _RL uIceLin(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL vIceLin(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -233,6 +234,24 @@ C     compute rhs for initial residual
      I         uIce, vIce,
      O         uIceLHS, vIceLHS,
      I         picardIter, myTime, myIter, myThid )
+C       DO bj=myByLo(myThid),myByHi(myThid)
+C        DO bi=myBxLo(myThid),myBxHi(myThid)
+C         DO j=1-OLy,sNy+OLy
+C          DO i=1-OLx,sNx+OLx
+C           areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C           areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C           IF ( areaW .LE. 0. _d 0 ) THEN
+C             uIceLHS(i,j,bi,bj) = 0. _d 0
+C             uIceRHS(i,j,bi,bj) = 0. _d 0
+C           ENDIF
+C           IF (areaS .LE. 0. _d 0) THEN
+C             vIceLHS(i,j,bi,bj) = 0. _d 0
+C             vIceRHS(i,j,bi,bj) = 0. _d 0
+C           ENDIF
+C          ENDDO
+C         ENDDO
+C        ENDDO
+C       ENDDO
 C     Calculate the residual
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -299,7 +318,23 @@ C     do Krylov loop only if convergence is not reached
 C     start Krylov iteration (FGMRES)
 
         krylovConverged = .FALSE.
-        FGMRESeps = krylovLinTol * picardResidual
+        FGMRESeps = krylovLinTol * picardResidual  
+C        DO bj=myByLo(myThid),myByHi(myThid)
+C         DO bi=myBxLo(myThid),myBxHi(myThid)
+C          DO j=1-OLy,sNy+OLy
+C           DO i=1-OLx,sNx+OLx
+C            areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C            areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C            IF ( areaW .LE. 0. _d 0 ) THEN
+C             uIce(i,j,bi,bj) = 0. _d 0
+C            ENDIF
+C            IF (areaS .LE. 0. _d 0) THEN
+C              vIce(i,j,bi,bj) = 0. _d 0
+C            ENDIF
+C           ENDDO
+C          ENDDO
+C         ENDDO
+C        ENDDO             
         CALL SEAICE_MAP2VEC(nVec,uIce,vIce,sol,.TRUE.,myThid)
         CALL SEAICE_MAP2VEC(nVec,uIceRHS,vIceRHS,rhs,.TRUE.,myThid)
         DO bj=myByLo(myThid),myByHi(myThid)
@@ -347,6 +382,22 @@ C     Call preconditioner
      U         uWork, vWork,
      I         zeta, eta, etaZ, zetaZ, dwatn,
      I         picardIter, krylovIter, myTime, myIter, myThid )
+C          DO bj=myByLo(myThid),myByHi(myThid)
+C           DO bi=myBxLo(myThid),myBxHi(myThid)
+C            DO j=1-OLy,sNy+OLy
+C             DO i=1-OLx,sNx+OLx
+C              areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C              areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C              IF ( areaW .LE. 0. _d 0 ) THEN
+C                uWork(i,j,bi,bj) = 0. _d 0
+C              ENDIF
+C              IF (areaS .LE. 0. _d 0) THEN
+C                vWork(i,j,bi,bj) = 0. _d 0
+C              ENDIF
+C             ENDDO
+C            ENDDO
+C           ENDDO
+C          ENDDO
          ELSEIF (iCode.GE.2) THEN
 C     Compute lhs of equations (A*x)
           CALL SEAICE_CALC_STRAINRATES(
@@ -357,6 +408,22 @@ C     Compute lhs of equations (A*x)
      I         uWork, vWork,
      O         uIceLHS, vIceLHS,
      I         picardIter, myTime, myIter, myThid )
+C          DO bj=myByLo(myThid),myByHi(myThid)
+C           DO bi=myBxLo(myThid),myBxHi(myThid)
+C            DO j=1-OLy,sNy+OLy
+C             DO i=1-OLx,sNx+OLx
+C              areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C              areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C              IF ( areaW .LE. 0. _d 0 ) THEN
+C                uIceLHS(i,j,bi,bj) = 0. _d 0
+C              ENDIF
+C              IF (areaS .LE. 0. _d 0) THEN
+C                vIceLHS(i,j,bi,bj) = 0. _d 0
+C              ENDIF
+C             ENDDO
+C            ENDDO
+C           ENDDO
+C          ENDDO
           DO bj=myByLo(myThid),myByHi(myThid)
            DO bi=myBxLo(myThid),myBxHi(myThid)
             DO j=1-OLy,sNy+OLy
@@ -404,6 +471,22 @@ C     criterion for the transition from accurate to approximate FGMRES
      &        JFNKres_t = picardResidual * JFNKres_tFac
         ENDIF
        ENDIF
+C         DO bj=myByLo(myThid),myByHi(myThid)
+C          DO bi=myBxLo(myThid),myBxHi(myThid)
+C           DO j=1-OLy,sNy+OLy
+C            DO i=1-OLx,sNx+OLx
+C             areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
+C             areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
+C             IF ( areaW .LE. 0. _d 0 ) THEN
+C               uIce(i,j,bi,bj) = 0. _d 0
+C             ENDIF
+C             IF (areaS .LE. 0. _d 0) THEN
+C               vIce(i,j,bi,bj) = 0. _d 0
+C             ENDIF
+C            ENDDO
+C           ENDDO
+C          ENDDO
+C         ENDDO
 #ifdef SEAICE_ALLOW_DAMAGE
 CML dont we have to put all of this into the same if-statement?
        IF ( SEAICEupdateDamage )

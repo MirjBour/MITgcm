@@ -90,7 +90,7 @@ C     em            - e11-e22 (abbreviation)
 #if (defined SEAICE_ALLOW_MCE || defined SEAICE_ALLOW_TEM)
       _RL etaMaxFac
 #endif /* SEAICE_ALLOW_MCE or SEAICE_ALLOW_TEM */
-      _RL sumNorm, maskZ
+      _RL sumNorm, maskZ, maskO, maskI
 #ifdef SEAICE_ZETA_SMOOTHREG
       _RL argTmp
 #endif /* SEAICE_ZETA_SMOOTHREG */
@@ -531,6 +531,14 @@ C DoubleParameters
      &          * denom
            zetaZ(i,j,bi,bj) = mu*(poissonFac + 1. _d 0)
            etaZ (i,j,bi,bj) = mu
+           maskO = HEFFM(i,j,  bi,bj)*HEFFM(i-1,j,  bi,bj)
+     &          *  HEFFM(i,j-1,bi,bj)*HEFFM(i-1,j-1,bi,bj)
+           maskI = press0(i,j,  bi,bj)*press0(i-1,j  ,bi,bj)
+     &          *  press0(i,j-1,bi,bj)*press0(i-1,j-1,bi,bj)
+           IF (maskI .EQ. 0. _d 0 .AND. maskO .GT. 0. _d 0 ) THEN
+            zetaZ(i,j,bi,bj) = 0. _d 0
+            etaZ (i,j,bi,bj) = 0. _d 0
+           ENDIF
           ENDDO
          ENDDO
 c         DO j=1-OLy+1,sNy+OLy-1
