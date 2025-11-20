@@ -533,6 +533,7 @@ C     now do the "explicit" time step
      &         *AREA(i-1,j+1,bi,bj) 
      &         .LE. 0. _d 0 ) THEN
             seaice_sigma12C(i,j,bi,bj) = 0. _d 0
+            gFld(i,j) = 0. _d 0
            ENDIF
           ENDDO
          ENDDO
