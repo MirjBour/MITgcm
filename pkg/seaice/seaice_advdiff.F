@@ -477,12 +477,6 @@ C     now do the "explicit" time step
      &          seaice_sigma1(i,j,bi,bj)
      &          + SEAICE_deltaTtherm * gFld(i,j)
      &          )
-           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
-     &         *AREA(i-1,j-1,bi,bj)*AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
-     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj)
-     &         *AREA(i-1,j+1,bi,bj) .LE. 0. _d 0 ) THEN
-            seaice_sigma1(i,j,bi,bj) = 0. _d 0
-           ENDIF
           ENDDO
          ENDDO
 C advect sigma_2
@@ -499,15 +493,8 @@ C     now do the "explicit" time step
            gFld(i,j) = (gFld(i,j) + gFld2(i,j)) 
            seaice_sigma2(i,j,bi,bj) = HEFFM(i,j,bi,bj) * (
      &          seaice_sigma2(i,j,bi,bj)
-     &          + SEAICE_deltaTtherm * gFld(i,j))
-           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
-     &         *AREA(i-1,j-1,bi,bj)
-     &         *AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
-     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj)
-     &         *AREA(i-1,j+1,bi,bj)
-     &         .LE. 0. _d 0 ) THEN
-            seaice_sigma2(i,j,bi,bj) = 0. _d 0
-           ENDIF
+     &          + SEAICE_deltaTtherm * gFld(i,j)
+     &          )
           ENDDO
          ENDDO
 C advect sigma_12C
@@ -526,15 +513,6 @@ C     now do the "explicit" time step
      &          seaice_sigma12C(i,j,bi,bj)                 
      &          + SEAICE_deltaTtherm * gFld(i,j)          
      &          )
-           IF ( AREA(i,j,bi,bj)*AREA(i-1,j,bi,bj)*AREA(i,j-1,bi,bj)
-     &         *AREA(i-1,j-1,bi,bj)
-     &         *AREA(i+1,j,bi,bj)*AREA(i,j+1,bi,bj)
-     &         *AREA(i+1,j+1,bi,bj)*AREA(i+1,j-1,bi,bj)
-     &         *AREA(i-1,j+1,bi,bj) 
-     &         .LE. 0. _d 0 ) THEN
-            seaice_sigma12C(i,j,bi,bj) = 0. _d 0
-            gFld(i,j) = 0. _d 0
-           ENDIF
           ENDDO
          ENDDO
 C advect sigma_12 by averaging the tendency for sigma12C to Z-points
@@ -542,7 +520,6 @@ C advect sigma_12 by averaging the tendency for sigma12C to Z-points
           DO i = 1, sNX+1
            seaice_sigma12(i,j,bi,bj) = seaice_sigma12(i,j,bi,bj)
      &          + SEAICE_deltaTtherm * fldAtZ(gFld,i,j,bi,bj)
-c           ENDIF
           ENDDO
          ENDDO
         ENDIF
