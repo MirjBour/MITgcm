@@ -48,7 +48,7 @@ C
       _RL zMax  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL HEFFM (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
 C
-      _RL press0(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)      
+      _RL press0(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL press (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
 C
       _RL deltaC(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -531,14 +531,14 @@ C DoubleParameters
      &          * denom
            zetaZ(i,j,bi,bj) = mu*(poissonFac + 1. _d 0)
            etaZ (i,j,bi,bj) = mu
-           maskO = HEFFM(i,j,  bi,bj)*HEFFM(i-1,j,  bi,bj)
-     &          *  HEFFM(i,j-1,bi,bj)*HEFFM(i-1,j-1,bi,bj)
-           maskI = press0(i,j,  bi,bj)*press0(i-1,j  ,bi,bj)
-     &          *  press0(i,j-1,bi,bj)*press0(i-1,j-1,bi,bj)
-           IF (maskI .EQ. 0. _d 0 .AND. maskO .GT. 0. _d 0 ) THEN
-            zetaZ(i,j,bi,bj) = 0. _d 0
-            etaZ (i,j,bi,bj) = 0. _d 0
-           ENDIF
+CML           maskO = HEFFM(i,j,  bi,bj)*HEFFM(i-1,j,  bi,bj)
+CML     &          *  HEFFM(i,j-1,bi,bj)*HEFFM(i-1,j-1,bi,bj)
+CML           maskI = press0(i,j,  bi,bj)*press0(i-1,j  ,bi,bj)
+CML     &          *  press0(i,j-1,bi,bj)*press0(i-1,j-1,bi,bj)
+CML           IF (maskI .EQ. 0. _d 0 .AND. maskO .GT. 0. _d 0 ) THEN
+CML            zetaZ(i,j,bi,bj) = 0. _d 0
+CML            etaZ (i,j,bi,bj) = 0. _d 0
+CML           ENDIF
           ENDDO
          ENDDO
 c         DO j=1-OLy+1,sNy+OLy-1
@@ -563,6 +563,18 @@ C     about the no-slip boundary conditions
           ENDDO
          ENDDO
         ENDIF
+        DO j=1-OLy+1,sNy+OLy
+         DO i=1-OLx+1,sNx+OLx
+          maskO = HEFFM(i,j,  bi,bj)*HEFFM(i-1,j,  bi,bj)
+     &         *  HEFFM(i,j-1,bi,bj)*HEFFM(i-1,j-1,bi,bj)
+          maskI = PRESS0(i,j,  bi,bj)*PRESS0(i-1,j,  bi,bj)
+     &         *  PRESS0(i,j-1,bi,bj)*PRESS0(i-1,j-1,bi,bj)
+          IF ( maskI .EQ. 0. _d 0 .AND. maskO .GT. 0. _d 0 ) THEN
+           etaZ (i,j,bi,bj) = 0. _d 0
+           zetaZ(i,j,bi,bj) = 0. _d 0
+          ENDIF
+         ENDDO
+        ENDDO
        ENDDO
       ENDDO
 
