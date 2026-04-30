@@ -66,7 +66,6 @@ C     myThid     :: my Thread Id. number
 CEOP
 
 #ifdef SEAICE_CGRID
-#ifdef SEAICE_ALLOW_DYNAMICS
 C     !FUNCTIONS:
       LOGICAL  DIFFERENT_MULTIPLE
       EXTERNAL DIFFERENT_MULTIPLE
@@ -81,11 +80,24 @@ C     i,j,bi,bj  :: Loop counters
       INTEGER ICOUNT1, ICOUNT2, linearIterLoc, nonLinIterLoc
       INTEGER kSrf
       LOGICAL doIterate4u, doIterate4v
+      LOGICAL doNonLinLoop
       CHARACTER*(MAX_LEN_MBUF) msgBuf
+
+#ifdef ALLOW_DIAGNOSTICS
+      LOGICAL  DIAGNOSTICS_IS_ON
+      EXTERNAL DIAGNOSTICS_IS_ON
+      _RL RTmp (1:sNx,1:sNy)
+#endif /* ALLOW_DIAGNOSTICS */
 
       _RL WFAU, WFAV, WFAU2, WFAV2
       _RL S1, S2, S1A, S2A
       _RL recip_deltaT
+
+#ifdef SEAICE_ALLOW_LSR_FLEX
+      _RL residIni, residIniNonLin
+      _RL LSRflexFac, LSR_ERRORfu, LSR_ERRORfv
+      _RL residkm1, residkm2
+#endif /* SEAICE_ALLOW_LSR_FLEX */
 
 C     diagonals of coefficient matrices
       _RL AU   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -133,9 +145,10 @@ C     tendency due to advection of momentum
       _RL gVmom(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
 #endif /*  SEAICE_ALLOW_MOM_ADVECTION */
 #ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER act1, act2, act3, act4
-      INTEGER max1, max2, max3
-      INTEGER itmpkey, itmpkey2, itmpkey3
+C     nlkey :: tape key (depends on nonlinear iteration)
+C     lnkey :: tape key (depends on linear and nonlinear iteration)
+C     tkey  :: tape key (depends on tile indices and lnkey)
+      INTEGER nlkey, lnkey, tkey
 #endif
       _RL COSWAT
       _RS SINWAT
@@ -171,10 +184,20 @@ C
        linearIterLoc = SEAICEpreconlinIter
        nonLinIterLoc = SEAICEpreconNL_Iter
       ENDIF
-C
+
       recip_deltaT = 1. _d 0 / SEAICE_deltaTdyn
 
-#ifdef ALLOW_AUTODIFF_TAMC
+C     surface level
+      IF ( usingPCoords ) THEN
+       kSrf = Nr
+      ELSE
+       kSrf = 1
+      ENDIF
+C--   introduce turning angles
+      SINWAT=SIN(SEAICE_waterTurnAngle*deg2rad)
+      COSWAT=COS(SEAICE_waterTurnAngle*deg2rad)
+
+#ifdef ALLOW_AUTODIFF
 cph break artificial dependencies
       DO bj=myByLo(myThid),myByHi(myThid)
        DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -246,41 +269,40 @@ C     As a side effect, this avoids TAF recomputation warnings.
        ENDDO
       ENDDO
 
+#ifdef SEAICE_ALLOW_LSR_FLEX
+      IF ( SEAICEuseLSRflex ) THEN
+       residkm1       = 1. _d 0
+       residkm2       = 1. _d 0
+       residIniNonLin = 1. _d 0
+      ENDIF
+#endif /* SEAICE_ALLOW_LSR_FLEX */
+
+      doNonLinLoop = .TRUE.
+
+C     Start of non-linear iteration ====================================
+
+C     Note: in S/R SEAICE_CHECK, we make sure that nonLinIterLoc
+C     (=SEAICEnonLinIterMax) is not larger than MPSEUDOTIMESTEPS (which
+C     defines the length of the TAF tape, so it is safe to use the
+C     runtime parameter value here.
       DO ipass=1,nonLinIterLoc
 
 #ifdef ALLOW_AUTODIFF_TAMC
-       itmpkey = (ikey_dynamics-1)*MPSEUDOTIMESTEPS + ipass
+       nlkey = (ikey_dynamics-1)*MPSEUDOTIMESTEPS + ipass
 # ifdef SEAICE_ALLOW_FREEDRIFT
-CADJ STORE uice_fd, vice_fd = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
-CADJ STORE ures,vres = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
+CADJ STORE uice_fd, vice_fd = comlev1_dynsol, key = nlkey, kind=isbyte
+CADJ STORE ures,vres        = comlev1_dynsol, key = nlkey, kind=isbyte
 # endif
-CADJ STORE utmp,vtmp = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
+CADJ STORE utmp,vtmp        = comlev1_dynsol, key = nlkey, kind=isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
 
-      IF ( ipass .LE. nonLinIterLoc ) THEN
+      IF ( doNonLinLoop ) THEN
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE uice = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
-CADJ STORE vice = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
-CADJ STORE uicenm1 = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
-CADJ STORE vicenm1 = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
+CADJ STORE uice    = comlev1_dynsol, key = nlkey, kind=isbyte
+CADJ STORE vice    = comlev1_dynsol, key = nlkey, kind=isbyte
+CADJ STORE uicenm1 = comlev1_dynsol, key = nlkey, kind=isbyte
+CADJ STORE vicenm1 = comlev1_dynsol, key = nlkey, kind=isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
-
-C     surface level
-      IF ( usingPCoords ) THEN
-       kSrf = Nr
-      ELSE
-       kSrf = 1
-      ENDIF
-C--   introduce turning angles
-      SINWAT=SIN(SEAICE_waterTurnAngle*deg2rad)
-      COSWAT=COS(SEAICE_waterTurnAngle*deg2rad)
 
 C SET SOME VALUES
       WFAU=SEAICE_LSRrelaxU
@@ -333,13 +355,13 @@ C     bi/bj-loops
 
 #ifdef ALLOW_AUTODIFF_TAMC
 C     That is an important one! Note, that
-C     * lsr is called multiple times (twice by default), thus the
-C       ipass index is part of itmpkey
+C     * ipass index is part of nlkey because we are inside
+C       the nonlinear iteration
 C     * this storing is still outside the lsr iteration loop
-CADJ STORE uice = comlev1_dynsol, kind=isbyte, key = itmpkey
-CADJ STORE vice = comlev1_dynsol, kind=isbyte, key = itmpkey
-CADJ STORE uicec = comlev1_dynsol, kind=isbyte, key = itmpkey
-CADJ STORE vicec = comlev1_dynsol, kind=isbyte, key = itmpkey
+CADJ STORE uice  = comlev1_dynsol, kind=isbyte, key = nlkey
+CADJ STORE vice  = comlev1_dynsol, kind=isbyte, key = nlkey
+CADJ STORE uicec = comlev1_dynsol, kind=isbyte, key = nlkey
+CADJ STORE vicec = comlev1_dynsol, kind=isbyte, key = nlkey
 #endif /* ALLOW_AUTODIFF_TAMC */
 
       CALL SEAICE_CALC_STRAINRATES(
@@ -348,7 +370,7 @@ CADJ STORE vicec = comlev1_dynsol, kind=isbyte, key = itmpkey
      I     ipass, myTime, myIter, myThid )
 
       CALL SEAICE_CALC_VISCOSITIES(
-     I     e11, e22, e12, zMin, zMax, HEFFM, press0, tensileStrFac,
+     I     e11, e22, e12, SEAICE_zMin, SEAICE_zMax, HEFFM, press0, tensileStrFac,
 #ifdef SEAICE_ALLOW_DAMAGE
      I     damage, damageZ, press0Z,
 #endif /* SEAICE_ALLOW_DAMAGE */
@@ -371,6 +393,17 @@ CADJ STORE vicec = comlev1_dynsol, kind=isbyte, key = itmpkey
      O     CbotC,
      I     ipass, myTime, myIter, myThid )
 #endif /* SEAICE_ALLOW_BOTTOMDRAG */
+
+#ifdef SEAICE_ALLOW_SIDEDRAG
+      IF ( SEAICEsideDrag .NE. 0. _d 0 ) CALL SEAICE_SIDEDRAG_STRESS(
+     I     uIceC, vIceC, coastRoughU, coastRoughV, AREA,
+     O     sideDragU, sideDragV,
+     I     ipass, myTime, myIter, myThid )
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE sideDragU = comlev1_dynsol, kind=isbyte, key = nlkey
+CADJ STORE sideDragV = comlev1_dynsol, kind=isbyte, key = nlkey
+#endif /* ALLOW_AUTODIFF_TAMC */
+#endif /* SEAICE_ALLOW_SIDEDRAG */
 C
 C     some abbreviations
 C
@@ -521,6 +554,23 @@ C
      O     AU, BU, CU, AV, BV, CV, uRt1, uRt2, vRt1, vRt2,
      I     iMin, iMax, jMin, jMax, myTime, myIter, myThid )
 
+#ifdef SEAICE_ALLOW_SIDEDRAG
+      IF ( SEAICEsideDrag .NE. 0. _d 0 ) THEN
+       DO bj=myByLo(myThid),myByHi(myThid)
+        DO bi=myBxLo(myThid),myBxHi(myThid)
+         DO j=jMin,jMax
+          DO i=iMin,iMax
+           BU(i,j,bi,bj) = BU(i,j,bi,bj)
+     &          + seaiceMaskU(i,j,bi,bj) * sideDragU(i,j,bi,bj)
+           BV(i,j,bi,bj) = BV(i,j,bi,bj)
+     &          + seaiceMaskV(i,j,bi,bj) * sideDragV(i,j,bi,bj)
+          ENDDO
+         ENDDO
+        ENDDO
+       ENDDO
+      ENDIF
+#endif /* SEAICE_ALLOW_SIDEDRAG */
+
 #ifndef OBCS_UVICE_OLD
 C--     prevent tri-diagonal solver from modifying OB values:
       DO bj=myByLo(myThid),myByHi(myThid)
@@ -563,8 +613,9 @@ C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 #endif /* ALLOW_DEBUG */
 
 C--   Calculate initial residual of the linearised system
-      IF ( printResidual .OR. LSR_mixIniGuess.GE.1 )
-     & CALL SEAICE_RESIDUAL(
+      IF ( printResidual .OR. LSR_mixIniGuess.GE.1
+     &     .OR. SEAICEuseLSRflex )
+     &    CALL SEAICE_RESIDUAL(
      I                  rhsU, rhsV, uRt1, uRt2, vRt1, vRt2,
      I                  AU, BU, CU, AV, BV, CV, uIce, vIce,
      O                  residUini, residVini, uTmp, vTmp,
@@ -604,10 +655,8 @@ C--   Calculate initial residual of the linearised system
       ENDIF
       IF ( LSR_mixIniGuess.GE.2 ) THEN
 # ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE uice, vice = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
-CADJ STORE utmp, vtmp = comlev1_dynsol, kind=isbyte,
-CADJ &     key = itmpkey
+CADJ STORE uice, vice = comlev1_dynsol, key = nlkey, kind=isbyte
+CADJ STORE utmp, vtmp = comlev1_dynsol, key = nlkey, kind=isbyte
 # endif /* ALLOW_AUTODIFF_TAMC */
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -663,8 +712,6 @@ C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
 C NOW DO ITERATION
 
-cph--- iteration starts here
-cph--- need to kick out goto
       doIterate4u = .TRUE.
       doIterate4v = .TRUE.
 
@@ -679,18 +726,81 @@ CML#endif /* ALLOW_AUTODIFF_TAMC */
       ICOUNT1 = linearIterLoc
       ICOUNT2 = linearIterLoc
 
+#ifdef SEAICE_ALLOW_LSR_FLEX
+C     first IF doNonLinLoop
+      ENDIF
+
+      IF ( SEAICEuseLSRflex ) THEN
+C     Do not do anything if the initial residuals are zero
+       IF ( residUini .EQ. 0. _d 0) THEN
+        doIterate4u = .FALSE.
+        ICOUNT1 = 0
+        S1      = residUini
+       ENDIF
+       IF ( residVini .EQ. 0. _d 0) THEN
+        doIterate4v = .FALSE.
+        ICOUNT2 = 0
+        S2      = residVini
+       ENDIF
+
+       residIni = SQRT(residUini*residUini+residVini*residVini)
+
+C     If you want to use SEAICEnonLinTol to be an absolute criterion,
+C     comment out the following line.
+       IF ( ipass .EQ. 1 ) residIniNonLin = residIni
+
+C     Skip the the rest of the nonlinear loop if there is nothing to do.
+       doNonLinLoop = doNonLinLoop .AND.( doIterate4u .OR. doIterate4v )
+C     Check convergence of nonlinear loop, but do at least two passes
+       doNonLinLoop = doNonLinLoop .AND. .NOT.
+     &      ( ipass .GT. 2 .AND.
+     &      ( residIni .LT. SEAICEnonLinTol*residIniNonlin ) )
+
+C     Catch the case of zero residual
+       IF  ( residIni .EQ. 0. _d 0 ) residIni = 1. _d -20
+C     From Lemieux et al. 2010
+C       LSRflexFac = MIN(LSRflexFac/residkm2*0.9,LSRflexFac)
+C     Other possibilities
+       LSRflexFac = 1. _d 0 / (1. _d 0 + ABS( LOG10(residIni) ) )
+C       LSRflexFac = ABS(LOG10(residkm2))/ABS(LOG10(residkm1))
+C       LSRflexFac = (residkm1/residkm2)/(1+ABS(LOG10(residIni)))
+       LSRflexFac = MIN(LSRflexFac, 0.99 _d 0 )
+C      LSRflexFac = MAX(LSRflexFac, 0.3 _d 0 )
+
+C       IF ( ipass .LE. 3 ) THEN
+C        LSRflexFac = 0.99 _d 0
+C       ENDIF
+
+       LSR_ERRORfu = residUini*LSRflexFac
+       LSR_ERRORfv = residVini*LSRflexFac
+
+       IF ( printResidual ) THEN
+        _BEGIN_MASTER( myThid )
+        WRITE(standardMessageUnit,'(A,1X,I5,1X,F10.6,3(1X,E12.6))')
+     &       ' SEAICE_LSR: ipass, FLEX_FACTOR,'//
+     &       ' LSR_ERRORfu, LSR_ERRORfv, residIni =',
+     &       ipass, LSRflexFac, LSR_ERRORfu, LSR_ERRORfv, residIni
+        _END_MASTER( myThid )
+       ENDIF
+
+      ENDIF
+
+C     test doNonLinLoop a second time, as it may have changed
+      IF ( doNonLinLoop ) THEN
+#endif /* SEAICE_ALLOW_LSR_FLEX */
+
       DO m = 1, linearIterLoc
 
 #ifdef ALLOW_AUTODIFF_TAMC
 # ifdef SEAICE_LSR_ADJOINT_ITER
-       itmpkey2 = (itmpkey-1)*SOLV_MAX_FIXED + MIN(m,SOLV_MAX_FIXED)
+       lnkey = (nlkey-1)*SOLV_MAX_FIXED + MIN(m,SOLV_MAX_FIXED)
 # else
-       itmpkey2 = itmpkey
+       lnkey = nlkey
 # endif /* SEAICE_LSR_ADJOINT_ITER */
 C     Storing these scalars and logicals is necessary to do an exact
 C     backward iteration
-CADJ STORE wfau, wfav = comlev1_lsr,  kind=isbyte, key = itmpkey2
-CADJ STORE doIterate4u, doIterate4v = comlev1_lsr, key = itmpkey2
+CADJ STORE wfau, wfav = comlev1_lsr,  kind=isbyte, key = lnkey
+CADJ STORE doIterate4u, doIterate4v = comlev1_lsr, key = lnkey
 #endif /* ALLOW_AUTODIFF_TAMC */
 
        IF ( doIterate4u .OR. doIterate4v ) THEN
@@ -701,11 +811,11 @@ CADJ STORE doIterate4u, doIterate4v = comlev1_lsr, key = itmpkey2
         ENDIF
 
 # ifdef ALLOW_AUTODIFF_TAMC
-C     Note that itmpkey2 can get very large when SEAICE_LSR_ADJOINT_ITER
+C     Note that lnkey can get very large when SEAICE_LSR_ADJOINT_ITER
 C     is defined for an accurate adjoint, otherwise it is the same for
 C     each m, so that the tapes get overwritten for each iterate and
 C     the adjoint is necessarily wrong.
-CADJ STORE uice, vice = comlev1_lsr, kind=isbyte, key = itmpkey2
+CADJ STORE uice, vice = comlev1_lsr, kind=isbyte, key = lnkey
 # endif /* ALLOW_AUTODIFF_TAMC */
 
 #ifdef SEAICE_GLOBAL_3DIAG_SOLVER
@@ -776,18 +886,9 @@ C     end bi,bj-loops
          DO bi=myBxLo(myThid),myBxHi(myThid)
 
 #ifdef ALLOW_AUTODIFF_TAMC
-          act1 = bi - myBxLo(myThid)
-          max1 = myBxHi(myThid) - myBxLo(myThid) + 1
-          act2 = bj - myByLo(myThid)
-          max2 = myByHi(myThid) - myByLo(myThid) + 1
-          act3 = myThid - 1
-          max3 = nTx*nTy
-          act4 = itmpkey2 - 1
-          itmpkey3 = (act1 + 1) + act2*max1
-     &                          + act3*max1*max2
-     &                          + act4*max1*max2*max3
-CADJ STORE uice(:,:,bi,bj) = comlev1_bibj_lsr,kind=isbyte,key=itmpkey3
-CADJ STORE vice(:,:,bi,bj) = comlev1_bibj_lsr,kind=isbyte,key=itmpkey3
+          tkey = bi + (bj-1)*nSx + (lnkey-1)*nSx*nSy
+CADJ STORE uice(:,:,bi,bj) = comlev1_bibj_lsr,kind=isbyte,key=tkey
+CADJ STORE vice(:,:,bi,bj) = comlev1_bibj_lsr,kind=isbyte,key=tkey
 #endif /* ALLOW_AUTODIFF_TAMC */
 C-jmc: get fewer TAF warnings when always (no if doIterate) saving uIce,vIce:
 C     save u/vIce prior to iteration
@@ -822,6 +923,26 @@ C     end bi,bj-loops
         ENDIF
 #endif /* SEAICE_GLOBAL_3DIAG_SOLVER */
 
+#ifdef SEAICE_ALLOW_LSR_FLEX
+        IF ( SEAICEuseLSRflex ) THEN
+         IF ( MOD(m,SOLV_NCHECK) .EQ. 0
+     &        .AND. (doIterate4u.OR.doIterate4v) ) THEN
+          CALL SEAICE_RESIDUAL(
+     I         rhsU, rhsV, uRt1, uRt2, vRt1, vRt2,
+     I         AU, BU, CU, AV, BV, CV, uIce, vIce,
+     O         S1, S2, uTmp, vTmp,
+     I         printResidual, myIter, myThid )
+          IF( S1.LT.LSR_ERRORfu ) THEN
+           ICOUNT1=m
+           doIterate4u = .FALSE.
+          ENDIF
+          IF( S2.LT.LSR_ERRORfv ) THEN
+           ICOUNT2=m
+           doIterate4v = .FALSE.
+          ENDIF
+         ENDIF
+        ELSE
+#endif
         IF ( doIterate4u.AND.MOD(m,SOLV_NCHECK).EQ.0) THEN
          S1=ZERO
          DO bj=myByLo(myThid),myByHi(myThid)
@@ -869,6 +990,9 @@ C SAFEGUARD AGAINST BAD FORCING ETC
           doIterate4v = .FALSE.
          ENDIF
         ENDIF
+#ifdef SEAICE_ALLOW_LSR_FLEX
+        ENDIF
+#endif
 
         CALL EXCH_UV_XY_RL( uIce, vIce,.TRUE.,myThid)
 
@@ -876,6 +1000,13 @@ C--    end doIterate4u or doIterate4v
        ENDIF
       ENDDO
 C ITERATION END -----------------------------------------------------
+
+#ifdef SEAICE_ALLOW_LSR_FLEX
+      IF ( SEAICEuseLSRflex ) THEN
+       residkm2 = residkm1
+       residkm1 = residIni
+      ENDIF
+#endif /* SEAICE_ALLOW_LSR_FLEX */
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
@@ -890,6 +1021,7 @@ C--   Calculate final residual of the linearised system
      I                  AU, BU, CU, AV, BV, CV, uIce, vIce,
      O                  residUend, residVend, uTmp, vTmp,
      I                  printResidual, myIter, myThid )
+
         _BEGIN_MASTER( myThid )
         WRITE(standardMessageUnit,'(A,1X,I9,1P3E16.8)')
      &    ' SEAICE_LSR: Residual Initial ipass,Uice,Vice=',
@@ -963,7 +1095,7 @@ C--   Compute residual norm and print
      &            - (uIce(i,j,bi,bj)+uIce(i+1,j,bi,bj)) )**2
      &          + ( (vIceNm1(i,j,bi,bj)+vIceNm1(i,j+1,bi,bj))
      &            - (vIce(i,j,bi,bj)+vIce(i,j+1,bi,bj)) )**2 )
-           IF ( area(i,j,bi,bj) .gt. 0.5 _d 0 ) THEN
+           IF ( area(i,j,bi,bj) .GT. 0.5 _d 0 ) THEN
             EKnorm = EKnorm + 0.5 _d 0 * heff(i,j,bi,bj) *
      &           ( ( (uIce(i,j,bi,bj)+uIce(i+1,j,bi,bj)) )**2
      &           + ( (vIce(i,j,bi,bj)+vIce(i,j+1,bi,bj)) )**2 )
@@ -976,18 +1108,43 @@ C--   Compute residual norm and print
        _GLOBAL_SUM_RL( resnorm, myThid )
        _GLOBAL_SUM_RL( EKnorm, myThid )
        _GLOBAL_SUM_RL( counter, myThid )
-       IF ( counter .gt. 0. _d 0 ) EKnorm = EKnorm/counter
+       IF ( counter .GT. 0. _d 0 ) EKnorm = EKnorm/counter
        _BEGIN_MASTER( myThid )
        WRITE(standardMessageUnit,'(A,I7,1X,2E22.14)')
      &      'S/R SEAICE_LSR: IPSEUDO, RESNORM, EKNORM = ',
-     &      ipass, sqrt(resnorm), EKnorm
+     &      ipass, SQRT(resnorm), EKnorm
        _END_MASTER( myThid )
       ENDIF
 #endif /* SEAICE_ALLOW_CHECK_LSR_CONVERGENCE */
 
+C     second IF doNonLinLoop
       ENDIF
 C     end outer ipass pseudo-time stepping loop
       ENDDO
+
+#ifdef ALLOW_DIAGNOSTICS
+      IF ( DIAGNOSTICS_IS_ON('SIlsrRe ',myThid) ) THEN
+C     S/R SEAICE_CALC_RESIDUAL does not compute residual velocities on
+C     halos, so we need an exchange here to get the correct diagnostics
+C     at cell centers
+       CALL EXCH_UV_XY_RL( uTmp, vTmp,.TRUE.,myThid)
+       DO bj = myByLo(myThid), myByHi(myThid)
+        DO bi = myBxLo(myThid), myBxHi(myThid)
+         DO j=1,sNy
+          DO i=1,sNx
+           RTmp(i,j) = SQRT( HALF * (
+     &            uTmp(i,  j,bi,bj) * uTmp(i,  j,bi,bj)
+     &          + uTmp(i+1,j,bi,bj) * uTmp(i+1,j,bi,bj)
+     &          + vTmp(i,j,  bi,bj) * vTmp(i,j,  bi,bj)
+     &          + vTmp(i,j+1,bi,bj) * vTmp(i,j+1,bi,bj)
+     &          ) )
+          ENDDO
+         ENDDO
+         CALL DIAGNOSTICS_FILL(RTmp,'SIlsrRe ',0,1,3,bi,bj,myThid)
+        ENDDO
+       ENDDO
+      ENDIF
+#endif   /* ALLOW_DIAGNOSTICS */
 
       IF ( useHB87StressCoupling ) THEN
 # ifdef ALLOW_AUTODIFF_TAMC
@@ -1015,9 +1172,6 @@ C     and evaluate divergence of stress and apply to forcing
        ENDDO
 C     endif  useHB87StressCoupling
       ENDIF
-
-#endif /* SEAICE_ALLOW_DYNAMICS */
-#endif /* SEAICE_CGRID */
 
       RETURN
       END
@@ -1082,9 +1236,6 @@ C-    residual (output)
       INTEGER myThid
 CEOP
 
-#ifdef SEAICE_CGRID
-#ifdef SEAICE_ALLOW_DYNAMICS
-
 C     !LOCAL VARIABLES:
 C     === Local variables ===
 C     i,j,bi,bj  :: Loop counters
@@ -1143,9 +1294,6 @@ C     scale residuals by globalArea so that they do not get ridiculously large
       ENDIF
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
-
-#endif /* SEAICE_ALLOW_DYNAMICS */
-#endif /* SEAICE_CGRID */
 
       RETURN
       END
@@ -1212,8 +1360,6 @@ C     coefficients for lateral points, v(i+/-1)
       _RL vRt2        (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
 CEOP
 
-#ifdef SEAICE_CGRID
-#ifdef SEAICE_ALLOW_DYNAMICS
 C     !LOCAL VARIABLES:
 C     === Local variables ===
 C     i,j,bi,bj  :: Loop counters
@@ -1377,7 +1523,7 @@ C     normalizing
           BU(i,j,bi,bj)    = BU(i,j,bi,bj)  * recip_rAw(i,j,bi,bj)
      &         + seaiceMaskU(i,j,bi,bj) *
      &         ( bdfAlphaOverDt*seaiceMassU(i,j,bi,bj)
-     &         + 0.5 _d 0 * ( dragSym(i,  J,bi,bj)
+     &         + 0.5 _d 0 * ( dragSym(i,  j,bi,bj)
      &                      + dragSym(i-1,j,bi,bj) )*areaW(i,j)
      &         )
           uRt1(i,j,bi,bj) = uRt1(i,j,bi,bj) * recip_rAw(i,j,bi,bj)
@@ -1845,12 +1991,12 @@ CADJ loop = sequential
       ENDDO
 CADJ loop = sequential
       DO i=iMin,iMax-1
-       iM=sNx-I
+       iM=sNx-i
        DO j=jMinLoc,jMax,jStep
 #else
 CADJ loop = sequential
        DO i=iMin,iMax-1
-        iM=sNx-I
+        iM=sNx-i
 #endif /* SEAICE_VECTORIZE_LSR */
         URT(iM,j)=URT(iM,j)-CUU(iM,j)*URT(iM+1,j)
        ENDDO
@@ -2025,7 +2171,6 @@ C     relaxation with WFAV
       ENDDO
 #endif /* SEAICE_LSR_ZEBRA */
 
-#endif /* SEAICE_ALLOW_DYNAMICS */
 #endif /* SEAICE_CGRID */
 
       RETURN

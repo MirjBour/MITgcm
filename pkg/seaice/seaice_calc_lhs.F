@@ -60,7 +60,8 @@ C     u/vIceLHS :: LHS of momentum equations
       _RL uIceLHS(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL vIceLHS(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
 
-#ifdef SEAICE_ALLOW_JFNK
+#if ( defined SEAICE_CGRID \
+      && ( defined SEAICE_ALLOW_JFNK || defined SEAICE_ALLOW_KRYLOV ) )
 C     i,j,bi,bj,k :: loop indices
       INTEGER i,j,bi,bj
       INTEGER k
@@ -175,6 +176,14 @@ C                                      + (Cdrag*cosWat+Cb)*uIce + uIce*sinWat)
      &         +  DWATN(I,J-1,bi,bj) * 0.5 _d 0 *
      &         (uIceLoc(I,J-1,bi,bj)+uIceLoc(I+1,J-1,bi,bj))
      &         ) ) * areaS(I,J)
+#ifdef SEAICE_ALLOW_SIDEDRAG
+C     lateral drag terms: + sideDragU*uIce
+          uIceLHS(I,J,bi,bj) = uIceLHS(I,J,bi,bj)
+     &         + sideDragU(I,J,bi,bj)*uIceLoc(I,J,bi,bj)
+C                         + sideDragV*vIce
+          vIceLHS(I,J,bi,bj) = vIceLHS(I,J,bi,bj)
+     &         + sideDragV(I,J,bi,bj)*vIceLoc(I,J,bi,bj)
+#endif /* SEAICE_ALLOW_SIDEDRAG */
 C     apply masks for interior (important when we have open boundaries)
           uIceLHS(I,J,bi,bj) = uIceLHS(I,J,bi,bj)*maskinW(I,J,bi,bj)
           vIceLHS(I,J,bi,bj) = vIceLHS(I,J,bi,bj)*maskinS(I,J,bi,bj)
@@ -206,7 +215,7 @@ C     therefore, we need to substract gU/Vmom from the left hand side
        ENDDO
       ENDDO
 
-#endif /* SEAICE_ALLOW_JFNK */
+#endif /* SEAICE_CGRID, SEAICE_ALLOW_JFNK and KRYLOV */
 
       RETURN
       END

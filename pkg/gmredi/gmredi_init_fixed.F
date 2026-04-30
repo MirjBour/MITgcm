@@ -20,6 +20,7 @@ C     === Global variables ===
 #include "EEPARAMS.h"
 #include "SIZE.h"
 #include "PARAMS.h"
+#include "GRID.h"
 #include "GMREDI.h"
 
 C     !INPUT/OUTPUT PARAMETERS:
@@ -42,10 +43,16 @@ C     === Local variables ===
 C--   Initialize arrays in common blocks :
       DO bj = myByLo(myThid), myByHi(myThid)
        DO bi = myBxLo(myThid), myBxHi(myThid)
-        DO j=1-Oly,sNy+OLy
-         DO i=1-Olx,sNx+Olx
+        DO j=1-OLy,sNy+OLy
+         DO i=1-OLx,sNx+OLx
            GM_isoFac2d(i,j,bi,bj) = 1. _d 0
            GM_bolFac2d(i,j,bi,bj) = 1. _d 0
+#ifdef GM_GEOM_VARIABLE_K
+C     compute depth tapering only once
+           GEOM_taper(i,j,bi,bj) = ( ( oneRL
+     &     - TANH( ( R_low(i,j,bi,bj) - rF(1) + 800. _d 0 )/ 300. _d 0 )
+     &                               )*halfRL )**2
+#endif /* GM_GEOM_VARIABLE_K */
          ENDDO
         ENDDO
        ENDDO
@@ -82,6 +89,51 @@ C-    Read vertical 1.D scaling factors from files:
 
 C-    Everyone else must wait for arrays to be loaded
       _BARRIER
+
+#ifdef GM_READ_K3D_REDI
+C--   Initialize 3-D Isopycnal diffusivity in common block
+      DO bj = myByLo(myThid), myByHi(myThid)
+       DO bi = myBxLo(myThid), myBxHi(myThid)
+        DO k=1,Nr
+         DO j=1-OLy,sNy+OLy
+          DO i=1-OLx,sNx+OLx
+           GM_inpK3dRedi(i,j,k,bi,bj) = GM_isopycK
+     &                  *GM_isoFac1d(k)*GM_isoFac2d(i,j,bi,bj)
+          ENDDO
+         ENDDO
+        ENDDO
+       ENDDO
+      ENDDO
+C--   Read 3-D Isopycnal diffusivity from file
+      IF ( GM_K3dRediFile .NE. ' ' ) THEN
+       CALL READ_FLD_XYZ_RL( GM_K3dRediFile, ' ',
+     &                       GM_inpK3dRedi, 0, myThid )
+       CALL EXCH_XYZ_RL( GM_inpK3dRedi, myThid )
+       CALL WRITE_FLD_XYZ_RL( 'KapRedi', ' ', GM_inpK3dRedi, 0, myThid )
+      ENDIF
+#endif
+#ifdef GM_READ_K3D_GM
+C--   Initialize 3-D Thickness diffusivity in common block
+      DO bj = myByLo(myThid), myByHi(myThid)
+       DO bi = myBxLo(myThid), myBxHi(myThid)
+        DO k=1,Nr
+         DO j=1-OLy,sNy+OLy
+          DO i=1-OLx,sNx+OLx
+           GM_inpK3dGM(i,j,k,bi,bj) = GM_background_K
+     &                  *GM_bolFac1d(k)*GM_bolFac2d(i,j,bi,bj)
+          ENDDO
+         ENDDO
+        ENDDO
+       ENDDO
+      ENDDO
+C--   Read 3-D Thickness diffusivity from file
+      IF ( GM_K3dGMFile .NE. ' ' ) THEN
+       CALL READ_FLD_XYZ_RL( GM_K3dGMFile, ' ',
+     &                       GM_inpK3dGM, 0, myThid )
+       CALL EXCH_XYZ_RL( GM_inpK3dGM, myThid )
+       CALL WRITE_FLD_XYZ_RL( 'KapGM', ' ', GM_inpK3dGM, 0, myThid )
+      ENDIF
+#endif
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 

@@ -100,7 +100,7 @@ C     fnames(n)   :: output file name for output stream # n
 C     fflags(n)   :: character string with per-file flags
 C                 :: 1rst: file precision ('R','D' or ' ' to use default outp prec)
 C                 :: 2nd: 'I'; integrate vertically ; 'P': interpolate vertically
-C                 :: 3rd: 'h'; cumulate thickness weighted field (if permitted)
+C                 :: 3rd: 'h'; multiply by hFac (if permitted) when filled
 C useMissingValue :: put MissingValue where mask = 0 (NetCDF output only)
 
       _RL freq(numLists), phase(numLists)
@@ -137,13 +137,12 @@ c    &   , misValInt
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
 C  - DIAG_PARAMS common block:
-C    useDiag4AdjOutp :: use diagnostics pkg for Adjoint variables
 C    diagLoc_ioUnit :: internal parameter: I/O unit for local diagnostics output
-C    dumpAtLast :: always write time-ave (freq>0) diagnostics at the end of the run
+C    diag_dBugLevel :: control debug print to STDOUT or log file, higher -> more
+C    dumpAtLast :: always write time-ave (freq>0) diagnostics at end of the run
 C    diagMdsDir :: directory where diagnostics will be written when using mds
 C    diagMdsDirCreate :: system call to mkdir to create diagMdsDir
-      INTEGER diagLoc_ioUnit
-      LOGICAL useDiag4AdjOutp
+      INTEGER diagLoc_ioUnit, diag_dBugLevel
       LOGICAL dumpAtLast,              diagMdsDirCreate
       LOGICAL diag_pickup_read,        diag_pickup_write
       LOGICAL diag_pickup_read_mdsio,  diag_pickup_write_mdsio
@@ -151,8 +150,8 @@ C    diagMdsDirCreate :: system call to mkdir to create diagMdsDir
       CHARACTER*(MAX_LEN_FNAM) diagMdsDir
 
       COMMON / DIAG_PARAMS_I /
-     &     diagLoc_ioUnit
-      COMMON / DIAG_PARAMS_L /      useDiag4AdjOutp,
+     &     diagLoc_ioUnit, diag_dBugLevel
+      COMMON / DIAG_PARAMS_L /
      &     dumpAtLast,              diagMdsDirCreate,
      &     diag_pickup_read,        diag_pickup_write,
      &     diag_pickup_read_mdsio,  diag_pickup_write_mdsio,

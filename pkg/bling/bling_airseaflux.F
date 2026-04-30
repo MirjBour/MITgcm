@@ -110,12 +110,13 @@ C o2 solubility relation coefficients
       _RL stemp
       _RL oCnew
 #ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER itdkey
+C     tkey :: tape key (tile dependent)
+      INTEGER tkey
 #endif
 CEOP
 
 #ifdef ALLOW_AUTODIFF_TAMC
-      itdkey = bi + (bj - 1)*nSx + (ikey_dynamics - 1)*nSx*nSy
+      tkey = bi + (bj - 1)*nSx + (ikey_dynamics - 1)*nSx*nSy
 #endif
 
 C----------------------------------------------------------------------
@@ -177,7 +178,7 @@ C Schmidt number is accounted for later
 c pCO2 solver...
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE ph(:,:,:,bi,bj) = comlev1_bibj, key=itdkey, kind=isbyte
+CADJ STORE ph(:,:,:,bi,bj) = comlev1_bibj, key=tkey, kind=isbyte
 #endif
 
 C$TAF LOOP = parallel
@@ -231,6 +232,9 @@ C Use the original Follows et al. (2006) solver
 
         ENDDO
        ENDDO
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE pCO2(:,:,bi,bj) = comlev1_bibj, key = tkey, kind = isbyte
+#endif
 
        DO j=jmin,jmax
         DO i=imin,imax

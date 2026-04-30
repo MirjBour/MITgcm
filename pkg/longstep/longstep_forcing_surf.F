@@ -6,7 +6,7 @@ C !ROUTINE: LONGSTEP_FORCING_SURF
 C !INTERFACE: ==========================================================
       SUBROUTINE LONGSTEP_FORCING_SURF(
      I                            bi, bj, iMin, iMax, jMin, jMax,
-     I                            myTime,myIter,myThid )
+     I                            myTime, myIter, myThid )
 
 C !DESCRIPTION:
 C     Precomputes surface forcing term for pkg/ptracers.
@@ -18,14 +18,16 @@ C !USES: ===============================================================
 #include "SIZE.h"
 #include "EEPARAMS.h"
 #include "PARAMS.h"
-#include "GRID.h"
-#include "SURFACE.h"
-#include "FFIELDS.h"
+c #include "GRID.h"
+c #include "SURFACE.h"
+c #include "FFIELDS.h"
 c #include "DYNVARS.h"
-#include "PTRACERS_SIZE.h"
-#include "PTRACERS_PARAMS.h"
-#include "PTRACERS_FIELDS.h"
 #include "LONGSTEP.h"
+#ifdef ALLOW_PTRACERS
+# include "PTRACERS_SIZE.h"
+# include "PTRACERS_PARAMS.h"
+# include "PTRACERS_FIELDS.h"
+#endif
 
 C !INPUT PARAMETERS: ===================================================
 C  bi,bj                :: tile indices
@@ -38,6 +40,7 @@ C  myThid               :: thread number
       INTEGER myThid
 
 #ifdef ALLOW_LONGSTEP
+#ifdef ALLOW_PTRACERS
 
 C !LOCAL VARIABLES: ====================================================
 C  i,j                  :: loop indices
@@ -64,7 +67,6 @@ c    &               surfaceForcingS(i,j,bi,bj)
           ENDDO
       ENDDO
 
-#ifdef EXACT_CONSERV
       IF ( (nonlinFreeSurf.GT.0 .OR. usingPCoords)
      &     .AND. useRealFreshWaterFlux ) THEN
 
@@ -92,9 +94,6 @@ c
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
       ELSE
-#else /* EXACT_CONSERV */
-      IF (.TRUE.) THEN
-#endif /* EXACT_CONSERV */
 
 C--   EmPmR does not really affect the water column height (for tracer budget)
 C     and is converted to a salt tendency.
@@ -154,6 +153,7 @@ C-    end local-surface-tracer / uniform-value distinction
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
+#endif /* ALLOW_PTRACERS */
 #endif /* ALLOW_LONGSTEP */
 
       RETURN

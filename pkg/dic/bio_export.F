@@ -10,7 +10,7 @@ C !INTERFACE: ==========================================================
 #endif
      O           bioac,
      I           bi,bj,iMin,iMax,jMin,jMax,
-     I           myIter,myTime,myThid)
+     I           myTime, myIter, myThid )
 
 c !DESCRIPTION:
 C  Calculate biological activity and export
@@ -28,19 +28,19 @@ C !USES: ===============================================================
 #endif
 
 C !INPUT PARAMETERS: ===================================================
-C  myThid               :: thread number
-C  myIter               :: current timestep
-C  myTime               :: current time
 C  PTR_PO4              :: phosphate tracer field
 C  PTR_FE               :: iron tracer field
-      INTEGER myIter
-      _RL myTime
-      INTEGER myThid
+C  myTime               :: current time
+C  myIter               :: current timestep
+C  myThid               :: thread number
       _RL  PTR_PO4(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr)
 #ifdef ALLOW_FE
       _RL  PTR_FE(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr)
 #endif
       INTEGER iMin, iMax, jMin, jMax, bi, bj
+      _RL myTime
+      INTEGER myIter
+      INTEGER myThid
 
 C !OUTPUT PARAMETERS: ==================================================
 C  bioac               :: biological productivity (will be split
@@ -52,7 +52,9 @@ C                         between export and dissolved pool)
 C !LOCAL VARIABLES: ====================================================
 C  i,j,k                  :: loop indices
        INTEGER i,j,k
-      _RL sfac    (1-OLy:sNy+OLy)
+#if !defined READ_PAR && !defined USE_QSW
+      _RL sfac    (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+#endif
       _RL lit     (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL kall, atten
       _RL nutlimit
@@ -60,15 +62,16 @@ C  i,j,k                  :: loop indices
 #ifdef ALLOW_FE
       _RL tmpfe
 #endif
-#ifdef AD_SAFE
+#ifdef DIC_AD_SAFE
       _RL thx, thy, thaux
 #endif
 CEOP
 
-#ifndef READ_PAR
-#ifndef USE_QSW
-      CALL INSOL(myTime,sfac,bi,bj,myThid)
-#endif
+#if !defined READ_PAR && !defined USE_QSW
+      CALL GCHEM_INSOLATION(
+     O     sfac,
+     I     iMin, iMax, jMin, jMax, bi, bj,
+     I     myTime, myIter, myThid)
 #endif
 cph: following init assumes nlev=nr
 cph: set in dic_init_fixed.F (ALLOW_AUTODIFF)
@@ -82,15 +85,19 @@ CRG C$TAF INIT bio_export = memory
 #elif (defined USE_QSW)
         lit(i,j)=-parfrac*Qsw(i,j,bi,bj)*maskC(i,j,1,bi,bj)
 #else
-        lit(i,j)=sfac(j)
+        lit(i,j)=MAX(1. _d -5,sfac(i,j)*parfrac)
 #endif
-        IF ( .NOT. QSW_underice ) THEN
+       ENDDO
+      ENDDO
+      IF ( .NOT. QSW_underice ) THEN
+       DO j=jMin,jMax
+        DO i=iMin,iMax
 c if using Qsw but not seaice/thsice or coupled, then
 c ice fraction needs to be taken into account
          lit(i,j)=lit(i,j)*(1. _d 0 - FIce(i,j,bi,bj))
-        ENDIF
+        ENDDO
        ENDDO
-      ENDDO
+      ENDIF
 
       kall = k0
       DO k=1,nlev
@@ -125,7 +132,7 @@ C     performance drop on vector computers
 #else
          tmpfe=PTR_FE(i,j,k)
 #endif
-#ifdef AD_SAFE
+#ifdef DIC_AD_SAFE
          thx = tmppo4/(tmppo4+KPO4)
          thy = tmpfe/(tmpfe+KFE)
 c        thx = PTR_PO4(i,j,k)/(PTR_PO4(i,j,k)+KPO4)

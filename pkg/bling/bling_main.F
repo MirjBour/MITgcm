@@ -117,7 +117,8 @@ C     runoff_PO4           :: tendency due to river runoff
 #endif
 #endif
 #ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER itdkey
+C     tkey :: tape key (tile dependent)
+      INTEGER tkey
 #endif
 CEOP
 
@@ -125,7 +126,7 @@ c-----------------------------------------------------------
 c  Initialize local variables
 
 #ifdef ALLOW_AUTODIFF_TAMC
-      itdkey = bi + (bj - 1)*nSx + (ikey_dynamics - 1)*nSx*nSy
+      tkey = bi + (bj - 1)*nSx + (ikey_dynamics - 1)*nSx*nSy
 #endif
       DO j=jmin,jmax
        DO i=imin,imax
@@ -168,7 +169,8 @@ c  carbon and oxygen air-sea interaction
      I                       myTime, myIter, myThid)
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE ph(:,:,:,bi,bj) = comlev1_bibj, key=itdkey, kind=isbyte
+CADJ STORE ph(:,:,:,bi,bj), ak0(:,:,bi,bj), fugf(:,:,bi,bj)
+CADJ &     = comlev1_bibj, key = tkey, kind = isbyte
 #endif
 
 c-----------------------------------------------------------
@@ -180,6 +182,10 @@ c  determine calcite saturation for remineralization
 #endif
      I                         bi, bj, imin, imax, jmin, jmax,
      I                         myTime, myIter, myThid)
+
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE omegaC(:,:,:,bi,bj) = comlev1_bibj, key=tkey, kind=isbyte
+#endif
 
 C-----------------------------------------------------------
 C  biological activity
@@ -216,7 +222,7 @@ C  Tracers are already diluted by freswater input, P-E+R
 C  This accounts for tracer concentration in river runoff
 C  no input south of 60S (it is ice melt)
 
-#ifdef ALLOW_EXF
+#if (defined ALLOW_EXF && defined ALLOW_RUNOFF)
        DO j=jmin,jmax
         IF (YC(i,j,bi,bj).gt.-60.0) THEN
          DO i=imin,imax

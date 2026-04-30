@@ -61,27 +61,20 @@ C     uTrans   :: Volume transports ( uVel.xA )
 C     vTrans   :: Volume transports ( vVel.yA )
 C     hDivFlow :: Div. Barotropic Flow [transport unit m3/s]
       INTEGER k,bi,bj
-#ifdef EXACT_CONSERV
       INTEGER i, j
       INTEGER ks
       _RL uTrans(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL vTrans(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL hDivFlow(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL facEmP, facMass
-#else /* EXACT_CONSERV */
-# ifdef ALLOW_OBCS
-      INTEGER i, j
-# endif
-#endif /* EXACT_CONSERV */
 #ifndef ALLOW_ADDFLUID
       _RL addMass(1)
 #endif /* ndef ALLOW_ADDFLUID */
 #if (defined NONLIN_FRSURF) && !(defined DISABLE_RSTAR_CODE)
       _RL rStarDhDt(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
 # if (defined ALLOW_AUTODIFF_TAMC) && (defined ALLOW_DEPTH_CONTROL)
-      INTEGER act1, act2, act3, act4
-      INTEGER max1, max2, max3
-      INTEGER idynkey
+C     tkey :: tape key (tile dependent)
+      INTEGER tkey
 # endif
 #else
       _RL rStarDhDt(1)
@@ -94,13 +87,12 @@ C--   Start bi,bj loops
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
-#ifdef EXACT_CONSERV
-      IF (exactConserv) THEN
+      IF ( exactConserv ) THEN
 
        facEmP = 0.
        IF ( fluidIsWater.AND.useRealFreshWaterFlux ) facEmP=mass2rUnit
        facMass = 0.
-       IF ( selectAddFluid.GE.1 ) facMass = mass2rUnit
+       IF ( selectAddFluid.GE.1 .AND. myIter.NE.0 ) facMass = mass2rUnit
 
 C--   Compute the Divergence of The Barotropic Flow :
 
@@ -155,7 +147,7 @@ C     and was not in old pickup-file ; try to use etaN & etaH instead.
           DO j=1,sNy
            DO i=1,sNx
             dEtaHdt(i,j,bi,bj) = (etaN(i,j,bi,bj)-etaH(i,j,bi,bj))
-     &                         / (implicDiv2Dflow*deltaTfreesurf)
+     &                         / (implicDiv2Dflow*deltaTFreeSurf)
            ENDDO
           ENDDO
          ENDIF
@@ -171,7 +163,7 @@ C     and was not in old pickup-file ; try to use etaN & etaH instead.
        ELSEIF ( myIter.EQ.nIter0 ) THEN
          DO j=1,sNy
           DO i=1,sNx
-            ks = kSurfC(I,J,bi,bj)
+            ks = kSurfC(i,j,bi,bj)
             PmEpR(i,j,bi,bj) = 0. _d 0
             dEtaHdt(i,j,bi,bj) = -hDivFlow(i,j)*recip_rA(i,j,bi,bj)
      &                                         *recip_deepFac2F(ks)
@@ -216,7 +208,7 @@ C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 C--   Update etaN at the end of the time step :
 C     Incorporate the Implicit part of -Divergence(Barotropic_Flow)
 
-       IF (implicDiv2Dflow.EQ. 0. _d 0) THEN
+       IF ( implicDiv2Dflow.EQ.zeroRL ) THEN
         DO j=1-OLy,sNy+OLy
          DO i=1-OLx,sNx+OLx
            etaN(i,j,bi,bj) = etaH(i,j,bi,bj)
@@ -226,7 +218,7 @@ C     Incorporate the Implicit part of -Divergence(Barotropic_Flow)
         DO j=1,sNy
          DO i=1,sNx
            etaN(i,j,bi,bj) = etaH(i,j,bi,bj)
-     &      + implicDiv2Dflow*dEtaHdt(i,j,bi,bj)*deltaTfreesurf
+     &      + implicDiv2Dflow*dEtaHdt(i,j,bi,bj)*deltaTFreeSurf
          ENDDO
         ENDDO
        ENDIF
@@ -247,20 +239,10 @@ C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 # ifdef NONLIN_FRSURF
 #  if (defined ALLOW_AUTODIFF_TAMC) && \
       (defined ALLOW_DEPTH_CONTROL) && (!defined DISABLE_RSTAR_CODE)
-      act1 = bi - myBxLo(myThid)
-      max1 = myBxHi(myThid) - myBxLo(myThid) + 1
-      act2 = bj - myByLo(myThid)
-      max2 = myByHi(myThid) - myByLo(myThid) + 1
-      act3 = myThid - 1
-      max3 = nTx*nTy
-      act4 = ikey_dynamics - 1
-      idynkey = (act1 + 1) + act2*max1
-     &                     + act3*max1*max2
-     &                     + act4*max1*max2*max3
-CADJ STORE dEtaHdt(:,:,bi,bj)
-CADJ &     = comlev1_bibj, key = idynkey, kind = isbyte
+      tkey = bi + (bj-1)*nSx + (ikey_dynamics-1)*nSx*nSy
+CADJ STORE dEtaHdt(:,:,bi,bj) = comlev1_bibj, key = tkey, kind = isbyte
 #  endif
-      IF (select_rStar .NE. 0) THEN
+      IF ( select_rStar.NE.0 ) THEN
 #  ifndef DISABLE_RSTAR_CODE
 C-- note: rStarDhDt is similar to rStarDhCDt from S/R CALC_R_STAR
 C         except for deep-factor and rho factor.
@@ -276,11 +258,9 @@ C         except for deep-factor and rho factor.
       ENDIF
 #  if (defined ALLOW_AUTODIFF_TAMC) && \
       (defined ALLOW_DEPTH_CONTROL) && (!defined DISABLE_RSTAR_CODE)
-CADJ STORE rStarDhDt = comlev1_bibj, key = idynkey, kind = isbyte
+CADJ STORE rStarDhDt = comlev1_bibj, key = tkey, kind = isbyte
 #  endif
 # endif /* NONLIN_FRSURF */
-
-#endif /* EXACT_CONSERV */
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
@@ -291,9 +271,8 @@ C--    Integrate continuity vertically for vertical velocity
      I                       bi, bj, k, uFld, vFld,
      I                       addMass, rStarDhDt,
      O                       wVel,
-     I                       myThid )
+     I                       myIter, myThid )
 
-#ifdef EXACT_CONSERV
        IF ( k.EQ.Nr .AND. myIter.NE.0 .AND. usingPCoords
      &      .AND. fluidIsWater .AND. useRealFreshWaterFlux ) THEN
 
@@ -305,7 +284,6 @@ C--    Integrate continuity vertically for vertical velocity
          ENDDO
 
        ENDIF
-#endif /* EXACT_CONSERV */
 
 #ifdef ALLOW_OBCS
 C--    reset W to zero outside the OB interior region
@@ -343,13 +321,12 @@ C     In reverse, print adjoint variable for etaN
       IF ( implicitIntGravWave .OR. myIter.EQ.nIter0 )
      &    _EXCH_XYZ_RL( wVel , myThid )
 
-#ifdef EXACT_CONSERV
 C--   Update etaH (from etaN and dEtaHdt):
-      IF (exactConserv) THEN
+      IF ( exactConserv ) THEN
 c       IF ( useRealFreshWaterFlux .AND. myIter.EQ.nIter0 )
 c    &    _EXCH_XY_RL( PmEpR, myThid )
 #ifdef ALLOW_DEBUG
-        IF (debugMode) CALL DEBUG_CALL('UPDATE_ETAH',myThid)
+        IF ( debugMode ) CALL DEBUG_CALL('UPDATE_ETAH',myThid)
 #endif
         CALL UPDATE_ETAH( myTime, myIter, myThid )
       ENDIF
@@ -362,8 +339,6 @@ c    &    _EXCH_XY_RL( PmEpR, myThid )
       ENDIF
 # endif /* DISABLE_SIGMA_CODE */
 #endif /* NONLIN_FRSURF */
-
-#endif /* EXACT_CONSERV */
 
       RETURN
       END

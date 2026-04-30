@@ -103,12 +103,12 @@ C Special Care: more forward vars in FWD common block ; check TAF AD-code !
 #endif
 
 #ifdef ALLOW_KAPGM_CONTROL
-      COMMON /adCTRL_FIELDS_KAPGM/
+      COMMON /adGM_INP_K3D_GM/
      &                       adKapGM
       _RL  adKapGM (1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
 #endif
 #ifdef ALLOW_KAPREDI_CONTROL
-      COMMON /adCTRL_FIELDS_KAPREDI/
+      COMMON /adGM_INP_K3D_REDI/
      &                       adKapRedi
       _RL  adKapRedi (1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
 #endif
@@ -221,11 +221,21 @@ C Special Care: more forward vars in FWD common block ; check TAF AD-code !
       _RL adshelficemass    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL adshicdragfld     (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL adshidragquadfld  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
+      COMMON /adSHELFICE_FIELDS_RL/ adshelficemass,
+     &  adshelficeforcingt, adshelficeforcings,
+     &  adshicdragfld, adshidragquadfld
+
+# ifdef ALLOW_SHITRANSCOEFF_3D
+      COMMON /adSHELFICE_GAMMA3D_RL/
+     &  adshitranscoefft3d, adshitranscoeffs3d
+      _RL adshitranscoeffs3d(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
+      _RL adshitranscoefft3d(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
+# else
+      COMMON /adSHELFICE_GAMMA_RL/
+     &  adshitranscoefft, adshitranscoeffs
       _RL adshitranscoeffs  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL adshitranscoefft  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      COMMON /adSHELFICE_FIELDS_RL/ adshelficemass,
-     &  adshelficeforcingt, adshelficeforcings, adshitranscoefft,
-     &  adshitranscoeffs, adshicdragfld, adshidragquadfld
+# endif
 #endif
 
 #endif /* ALLOW_AUTODIFF_MONITOR */

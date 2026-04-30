@@ -3,9 +3,6 @@
 #ifdef ALLOW_AUTODIFF
 # include "AUTODIFF_OPTIONS.h"
 #endif
-#ifdef ALLOW_CTRL
-# include "CTRL_OPTIONS.h"
-#endif
 #ifdef ALLOW_SALT_PLUME
 # include "SALT_PLUME_OPTIONS.h"
 #endif
@@ -59,6 +56,9 @@ C     ks     :: index of surface interface layer
       INTEGER bi,bj
       INTEGER i,j
       INTEGER ks
+#ifdef ALLOW_AUTODIFF_TAMC
+      INTEGER tkey
+#endif
       _RL recip_Cp
 #ifdef ALLOW_BALANCE_FLUXES
       _RS tmpVar(1)
@@ -66,10 +66,8 @@ C     ks     :: index of surface interface layer
 #ifdef CHECK_OVERLAP_FORCING
       _RS fixVal
 #endif
-#ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER act1, act2, act3, act4
-      INTEGER max1, max2, max3
-      INTEGER ikey
+#ifdef SHORTWAVE_HEATING
+      _RS tmpFac
 #endif
 CEOP
 
@@ -79,6 +77,10 @@ CEOP
        ks        = 1
       ENDIF
       recip_Cp = 1. _d 0 / HeatCapacity_Cp
+#ifdef SHORTWAVE_HEATING
+      tmpFac = oneRS
+      IF ( selectPenetratingSW .LE. 0 ) tmpFac = zeroRS
+#endif
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
@@ -87,14 +89,28 @@ C     to oceanic surface forcing
 
 #ifdef ALLOW_BALANCE_FLUXES
 C     balance fluxes
+# ifdef ALLOW_AUTODIFF
       tmpVar(1) = oneRS
-      IF ( balanceEmPmR .AND. (.NOT.useSeaice .OR. useThSIce) ) THEN
-        CALL REMOVE_MEAN_RS( 1, EmPmR, maskInC, maskInC, rA, tmpVar,
-     &                       'EmPmR', myTime, myIter, myThid )
+#  ifdef ALLOW_AUTODIFF_TAMC
+CADJ INCOMPLETE tmpVar
+#  endif
+# endif
+      IF ( selectBalanceEmPmR.GE.1 .AND.
+     &     (.NOT.useSeaice .OR. useThSIce) ) THEN
+       IF ( selectBalanceEmPmR.EQ.1 ) THEN
+        tmpVar(1) = oneRS
+        CALL REMOVE_MEAN_RS( 1, EmPmR, maskInC, maskInC, rA,
+     &                       tmpVar, 'EmPmR', myTime, myIter, myThid )
+       ELSEIF ( selectBalanceEmPmR.EQ.2 ) THEN
+        tmpVar(1) = -oneRS
+        CALL REMOVE_MEAN_RS( 1, EmPmR, weight2BalanceFlx, maskInC, rA,
+     &                       tmpVar, 'EmPmR', myTime, myIter, myThid )
+       ENDIF
       ENDIF
       IF ( balanceQnet  .AND. (.NOT.useSeaice .OR. useThSIce) ) THEN
-        CALL REMOVE_MEAN_RS( 1, Qnet,  maskInC, maskInC, rA, tmpVar,
-     &                       'Qnet ', myTime, myIter, myThid )
+        tmpVar(1) = oneRS
+        CALL REMOVE_MEAN_RS( 1, Qnet,  maskInC, maskInC, rA,
+     &                       tmpVar, 'Qnet ', myTime, myIter, myThid )
       ENDIF
 #endif /* ALLOW_BALANCE_FLUXES */
 
@@ -116,15 +132,31 @@ c     ENDIF
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
-#ifdef EXACT_CONSERV
-C NB: synchronous time step: PmEpR lag 1 time step behind EmPmR
-C     to stay consitent with volume change (=d/dt etaH).
-# ifdef ALLOW_AUTODIFF_TAMC
+#ifdef ALLOW_AUTODIFF_TAMC
 CADJ STORE PmEpR = comlev1, key = ikey_dynamics,  kind = isbyte
 CADJ STORE EmPmR = comlev1, key = ikey_dynamics,  kind = isbyte
-# endif
+#endif
       DO bj=myByLo(myThid),myByHi(myThid)
        DO bi=myBxLo(myThid),myBxHi(myThid)
+C--   set surfaceForcingT,S to zero.
+        DO j=1-OLy,sNy+OLy
+         DO i=1-OLx,sNx+OLx
+           surfaceForcingT(i,j,bi,bj) = 0. _d 0
+           surfaceForcingS(i,j,bi,bj) = 0. _d 0
+         ENDDO
+        ENDDO
+c#ifdef ALLOW_EBM
+        IF ( useRealFreshWaterFlux ) THEN
+C--   in case some pkgs put non-zero values over land, clean this up:
+         DO j=1-OLy,sNy+OLy
+          DO i=1-OLx,sNx+OLx
+           EmPmR(i,j,bi,bj) = EmPmR(i,j,bi,bj)*maskInC(i,j,bi,bj)
+          ENDDO
+         ENDDO
+        ENDIF
+c#endif /* ALLOW_EBM */
+C NB: synchronous time step: PmEpR lags 1 time step behind EmPmR
+C     to stay consistent with volume change (=d/dt etaH).
         IF ( staggerTimeStep ) THEN
          DO j=1-OLy,sNy+OLy
           DO i=1-OLx,sNx+OLx
@@ -132,19 +164,6 @@ CADJ STORE EmPmR = comlev1, key = ikey_dynamics,  kind = isbyte
           ENDDO
          ENDDO
         ENDIF
-       ENDDO
-      ENDDO
-#endif /* EXACT_CONSERV */
-
-C--   set surfaceForcingT,S to zero.
-      DO bj=myByLo(myThid),myByHi(myThid)
-       DO bi=myBxLo(myThid),myBxHi(myThid)
-        DO j=1-OLy,sNy+OLy
-         DO i=1-OLx,sNx+OLx
-           surfaceForcingT(i,j,bi,bj) = 0. _d 0
-           surfaceForcingS(i,j,bi,bj) = 0. _d 0
-         ENDDO
-        ENDDO
        ENDDO
       ENDDO
 
@@ -162,6 +181,9 @@ C--   passive tracer surface forcing:
 #ifdef ALLOW_AUTODIFF_TAMC
 CADJ STORE surfaceForcingS = comlev1, key = ikey_dynamics,
 CADJ &    kind = isbyte
+#ifdef ALLOW_BLING
+CADJ STORE EmPmR = comlev1, key = ikey_dynamics,  kind = isbyte
+#endif
 #endif
       IF ( usePTRACERS ) THEN
        DO bj=myByLo(myThid),myByHi(myThid)
@@ -184,23 +206,12 @@ C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
        DO bi=myBxLo(myThid),myBxHi(myThid)
 
 #ifdef ALLOW_AUTODIFF_TAMC
-        act1 = bi - myBxLo(myThid)
-        max1 = myBxHi(myThid) - myBxLo(myThid) + 1
-        act2 = bj - myByLo(myThid)
-        max2 = myByHi(myThid) - myByLo(myThid) + 1
-        act3 = myThid - 1
-        max3 = nTx*nTy
-        act4 = ikey_dynamics - 1
-        ikey = (act1 + 1) + act2*max1
-     &                    + act3*max1*max2
-     &                    + act4*max1*max2*max3
+        tkey = bi + (bj-1)*nSx + (ikey_dynamics-1)*nSx*nSy
 #endif /* ALLOW_AUTODIFF_TAMC */
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE EmPmR(:,:,bi,bj) = comlev1_bibj, key=ikey,  kind = isbyte
-#ifdef EXACT_CONSERV
-CADJ STORE PmEpR(:,:,bi,bj) = comlev1_bibj, key=ikey,  kind = isbyte
-#endif
+CADJ STORE EmPmR(:,:,bi,bj) = comlev1_bibj, key=tkey,  kind = isbyte
+CADJ STORE PmEpR(:,:,bi,bj) = comlev1_bibj, key=tkey,  kind = isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
 
 C--   Surface Fluxes :
@@ -215,11 +226,12 @@ C     Net heat flux Qnet:
           surfaceForcingT(i,j,bi,bj) = surfaceForcingT(i,j,bi,bj)
      &       - ( Qnet(i,j,bi,bj)
 #ifdef SHORTWAVE_HEATING
-     &          -Qsw(i,j,bi,bj)
+     &          -Qsw(i,j,bi,bj)*tmpFac
 #endif
-#ifdef ALLOW_HFLUXM_CONTROL
+C---  Customized code starts -----------------------------------------
+C     Extra mean heat flux field specific to this experiment
      &          +Qnetm(i,j,bi,bj)
-#endif
+C---  Customized code ends -------------------------------------------
      &         ) *recip_Cp*mass2rUnit
 C     Net Salt Flux :
           surfaceForcingS(i,j,bi,bj) = surfaceForcingS(i,j,bi,bj)
@@ -250,8 +262,7 @@ C--   Fresh-water flux
 C-    Apply mask on Fresh-Water flux (if useRealFreshWaterFlux)
 C     <== removed: maskInC is applied directly in S/R SOLVE_FOR_PRESSURE
 
-#ifdef EXACT_CONSERV
-      IF ( (nonlinFreeSurf.GT.0 .OR. usingPCoords)
+      IF ( ( nonlinFreeSurf.GT.0 .OR. usingPCoords )
      &     .AND. useRealFreshWaterFlux ) THEN
 
 C--   NonLin_FrSurf and RealFreshWaterFlux : PmEpR effectively changes
@@ -282,9 +293,6 @@ C     with this input/output of water is added here to the surface tendency.
 
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
       ELSE
-#else /* EXACT_CONSERV */
-      IF (.TRUE.) THEN
-#endif /* EXACT_CONSERV */
 
 C--   EmPmR does not really affect the water column height (for tracer budget)
 C     and is converted to a salt tendency.
@@ -364,7 +372,7 @@ C   (requires time varying dP(Nr) like dP(k-bottom) with NonLin FS).
           DO j = jMin, jMax
            DO i = iMin, iMax
             phi0surf(i,j,bi,bj) = ( pLoad(i,j,bi,bj)
-     &                          +sIceLoad(i,j,bi,bj)*gravity
+     &                          +sIceLoad(i,j,bi,bj)*gravity*sIceLoadFac
      &                            )*recip_rhoConst
            ENDDO
           ENDDO

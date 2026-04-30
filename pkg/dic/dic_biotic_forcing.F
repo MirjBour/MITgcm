@@ -1,4 +1,7 @@
 #include "DIC_OPTIONS.h"
+#ifdef ALLOW_AUTODIFF
+# include "AUTODIFF_OPTIONS.h"
+#endif
 
 CBOP
 C !ROUTINE: DIC_BIOTIC_FORCING
@@ -13,7 +16,7 @@ C !INTERFACE: ==========================================================
      U                      PTR_FE,
 #endif
      I                      bi, bj, iMin, iMax, jMin, jMax,
-     I                      myIter, myTime, myThid )
+     I                      myTime, myIter, myThid )
 
 C !DESCRIPTION:
 C updates all the tracers for the effects of air-sea exchange, biological
@@ -29,6 +32,9 @@ C !USES: ===============================================================
 #include "DIC_VARS.h"
 #include "PTRACERS_SIZE.h"
 #include "PTRACERS_PARAMS.h"
+#ifdef ALLOW_AUTODIFF_TAMC
+# include "tamc.h"
+#endif
 
 C !INPUT/OUTPUT PARAMETERS: ===================================================
 C  PTR_DIC              :: dissolced inorganic carbon
@@ -38,8 +44,8 @@ c  PTR_DOP              :: dissolve organic phosphurous
 c  PTR_O2               :: oxygen
 C  PTR_FE               :: iron
 c  bi, bj               :: current tile indices
-C  myIter               :: current timestep
 C  myTime               :: current time
+C  myIter               :: current timestep
 C  myThid               :: thread number
       _RL  PTR_DIC(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr)
       _RL  PTR_ALK(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr)
@@ -52,12 +58,14 @@ C  myThid               :: thread number
       _RL  PTR_FE(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr)
 #endif
       INTEGER bi, bj, iMin, iMax, jMin, jMax
-      INTEGER myIter
       _RL myTime
+      INTEGER myIter
       INTEGER myThid
 
-#ifdef ALLOW_PTRACERS
 #ifdef DIC_BIOTIC
+C !FUNCTIONS:       ====================================================
+      LOGICAL  DIFFERENT_MULTIPLE
+      EXTERNAL DIFFERENT_MULTIPLE
 
 C !LOCAL VARIABLES: ====================================================
 C  i,j,k                  :: loop indices
@@ -98,13 +106,14 @@ C  freefe                 :: iron not bound to ligand
       _RL  freefe(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr)
 #endif
       INTEGER i,j,k
-#ifdef CAR_DISS
-      INTEGER nCALCITEstep
-#endif
 #ifdef ALLOW_FE
 # ifdef SEDFE
       INTEGER kBottom
 # endif
+#endif
+#ifdef ALLOW_AUTODIFF_TAMC
+C     tkey :: tape key TAF-AD simulations (depends on tiles)
+      INTEGER tkey
 #endif
 CEOP
 
@@ -112,6 +121,9 @@ CEOP
       IF (debugMode) CALL DEBUG_ENTER('DIC_BIOTIC_FORCING',myThid)
 #endif
 
+#ifdef ALLOW_AUTODIFF_TAMC
+      tkey = bi + (bj-1)*nSx + (ikey_dynamics-1)*nSx*nSy
+#endif
       IF ( useThSIce .OR. useSEAICE .OR. useCoupler ) THEN
 #ifdef ALLOW_DEBUG
         IF (debugMode) CALL DEBUG_CALL('DIC_FIELDS_UPDATE',myThid)
@@ -161,7 +173,11 @@ C carbon air-sea interaction
      I                    PTR_DIC, PTR_ALK, PTR_PO4,
      O                    SURC,
      I                    bi, bj, iMin, iMax, jMin, jMax,
-     I                    myIter, myTime, myThid )
+     I                    myTime, myIter, myThid )
+
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE Kwexch_pre(:,:,bi,bj) = comlev1_bibj, key=tkey, kind=isbyte
+#endif
 
 C alkalinity air-sea interaction
 #ifdef ALLOW_DEBUG
@@ -171,7 +187,7 @@ C alkalinity air-sea interaction
      I                    PTR_ALK,
      O                    SURA,
      I                    bi, bj, iMin, iMax, jMin, jMax,
-     I                    myIter, myTime, myThid )
+     I                    myTime, myIter, myThid )
 
 #ifdef ALLOW_O2
 C oxygen air-sea interaction
@@ -182,7 +198,7 @@ C oxygen air-sea interaction
      I                    PTR_O2,
      O                    SURO,
      I                    bi, bj, iMin, iMax, jMin, jMax,
-     I                    myIter, myTime, myThid )
+     I                    myTime, myIter, myThid )
 #endif
 
 #ifdef ALLOW_FE
@@ -201,23 +217,26 @@ C biological activity
        IF (debugMode) CALL DEBUG_CALL('BIO_EXPORT',myThid)
 #endif
        CALL BIO_EXPORT(
-     I               PTR_PO4,
+     I                    PTR_PO4,
 #ifdef ALLOW_FE
-     I               PTR_FE,
+     I                    PTR_FE,
 #endif
-     O               BIOac,
-     I               bi, bj, iMin, iMax, jMin, jMax,
-     I               myIter, myTime, myThid )
+     O                    BIOac,
+     I                    bi, bj, iMin, iMax, jMin, jMax,
+     I                    myTime, myIter, myThid )
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE BIOac = comlev1_bibj, key = tkey, kind = isbyte
+#endif
 
 C flux of po4 from layers with biological activity
 #ifdef ALLOW_DEBUG
        IF (debugMode) CALL DEBUG_CALL('PHOS_FLUX',myThid)
 #endif
        CALL PHOS_FLUX(
-     I               BIOac,
-     U               pflux, exportflux,
-     I               bi, bj, iMin, iMax, jMin, jMax,
-     I               myIter, myTime, myThid )
+     I                    BIOac,
+     U                    pflux, exportflux,
+     I                    bi, bj, iMin, iMax, jMin, jMax,
+     I                    myTime, myIter, myThid )
 
 C- Carbonate sink
        DO k=1,Nr
@@ -230,21 +249,23 @@ C- Carbonate sink
        ENDDO
 
 C carbonate
-#ifdef CAR_DISS
-C dissolution only below saturation horizon
-C code following method by Karsten Friis
-        nCALCITEstep = 3600
-        IF(myIter .lt. (nIter0+5) .or.
-     &               mod(myIter,nCALCITEstep) .eq. 0)THEN
+#ifdef DIC_CALCITE_SAT
+       IF ( useCalciteSaturation ) THEN
+C calcite dissolution occurs only below saturation horizon
+C    code following method by Karsten Friis
+C could be expensive, so find out if it is time to update the omega calcite
+C    field (requires 3-d computation of pH).
+        IF ( myIter.EQ.(nIter0 + 1) .OR.
+     &       DIFFERENT_MULTIPLE( calcOmegaCalciteFreq,
+     &                           myTime, deltaTClock ) ) THEN
 #ifdef ALLOW_DEBUG
           IF (debugMode) CALL DEBUG_CALL('CALCITE_SATURATION',myThid)
 #endif
           CALL CALCITE_SATURATION(
      I                    PTR_DIC, PTR_ALK, PTR_PO4,
      I                    bi, bj, iMin, iMax, jMin, jMax,
-     I                    myIter, myTime, myThid )
+     I                    myTime, myIter, myThid )
         ENDIF
-
 #ifdef ALLOW_DEBUG
         IF (debugMode) CALL DEBUG_CALL('CAR_FLUX_OMEGA_TOP',myThid)
 #endif
@@ -252,18 +273,22 @@ C code following method by Karsten Friis
      I                    BIOac,
      O                    cflux,
      I                    bi, bj, iMin, iMax, jMin, jMax,
-     I                    myIter, myTime, myThid )
-#else
-C old OCMIP way
+     I                    myTime, myIter, myThid )
+       ELSE
+#endif /* DIC_CALCITE_SAT */
+C calcite dissolution occurs according to a power law scaled by zca
+C    code follwing the old OCMIP way
 #ifdef ALLOW_DEBUG
         IF (debugMode) CALL DEBUG_CALL('CAR_FLUX',myThid)
 #endif
-        CALL CAR_FLUX(
+         CALL CAR_FLUX(
      I                    CAR_S,
      U                    cflux,
      I                    bi, bj, iMin, iMax, jMin, jMax,
-     I                    myIter, myTime, myThid )
-#endif
+     I                    myTime, myIter, myThid )
+#ifdef DIC_CALCITE_SAT
+       ENDIF
+#endif /* DIC_CALCITE_SAT */
 
 C add all tendencies for PO4, DOP, ALK, DIC
        DO k=1,Nr
@@ -378,47 +403,6 @@ c find free iron and get rid of insoluble part
 #endif
 #endif
 
-#ifdef ALLOW_TIMEAVE
-C save averages
-       IF ( PTRACERS_taveFreq.GT.0. ) THEN
-        DO k=1,Nr
-         DO j=jMin,jMax
-          DO i=iMin,iMax
-            BIOave(i,j,k,bi,bj)   =BIOave(i,j,k,bi,bj)+
-     &                             BIOac(i,j,k)*deltaTClock
-            CARave(i,j,k,bi,bj)   =CARave(i,j,k,bi,bj)+
-     &                             CAR(i,j,k)*deltaTClock
-            OmegaCave(i,j,k,bi,bj)=OmegaCave(i,j,k,bi,bj)+
-     &                             OmegaC(i,j,k,bi,bj)*deltaTClock
-            pfluxave(i,j,k,bi,bj) =pfluxave(i,j,k,bi,bj) +
-     &                             pflux(i,j,k)*deltaTClock
-            epfluxave(i,j,k,bi,bj)=epfluxave(i,j,k,bi,bj) +
-     &                             exportflux(i,j,k)*deltaTClock
-            cfluxave(i,j,k,bi,bj) =cfluxave(i,j,k,bi,bj) +
-     &                             cflux(i,j,k)*deltaTClock
-          ENDDO
-         ENDDO
-        ENDDO
-         DO j=jMin,jMax
-          DO i=iMin,iMax
-              SURave(i,j,bi,bj)    =SURave(i,j,bi,bj)+
-     &                              SURC(i,j)*deltaTClock
-#ifdef ALLOW_O2
-              SUROave(i,j,bi,bj)   =SUROave(i,j,bi,bj)+
-     &                              SURO(i,j)*deltaTClock
-#endif
-              pCO2ave(i,j,bi,bj)   =pCO2ave(i,j,bi,bj)+
-     &                              pCO2(i,j,bi,bj)*deltaTClock
-              pHave(i,j,bi,bj)     =pHave(i,j,bi,bj)+
-     &                              pH(i,j,bi,bj)*deltaTClock
-              fluxCO2ave(i,j,bi,bj)=fluxCO2ave(i,j,bi,bj)+
-     &                           fluxCO2(i,j,bi,bj)*deltaTClock
-          ENDDO
-         ENDDO
-         DIC_timeAve(bi,bj) = DIC_timeAve(bi,bj)+deltaTClock
-       ENDIF
-#endif /* ALLOW_TIMEAVE*/
-
 C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
 #ifdef ALLOW_DIAGNOSTICS
@@ -440,7 +424,6 @@ C---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 #endif
 
 #endif /* DIC_BIOTIC */
-#endif /* ALLOW_PTRACERS */
 
        RETURN
        END

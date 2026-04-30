@@ -76,7 +76,7 @@ C     eta_qrNM1     denote current and previous iterations respectively.
 C     recip_eta_qrNM1 :: reciprocal of eta_qrNM1
 C     cgBeta     :: coeff used to update conjugate direction vector "s".
 C     alpha      :: coeff used to update solution & residual
-C     alphaSum   :: to avoid the statement: alpha = 1./alpha (for TAMC/TAF)
+C     alphaSum   :: to avoid the statement: alpha = 1./alpha (for TAF)
 C     sumRHS     :: Sum of right-hand-side. Sometimes this is a useful
 C                   debugging/trouble shooting diagnostic. For neumann problems
 C                   sumRHS needs to be ~0 or it converge at a non-zero residual.
@@ -92,13 +92,11 @@ C                :: this field is superfluous if your cg2d is self-adjoint.
       INTEGER i, j, it2d
       INTEGER actualIts
 #ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER act1, act2
-      INTEGER max1
-      INTEGER icg2dkey, ikey
+C     ikey       :: tape key (depends on iteration it2d)
+      INTEGER ikey
 #else
       _RL    rhsNorm
 #endif
-      _RL    cg2dTolerance_sq
       _RL    err_sq,  errTile(nSx,nSy)
       _RL    eta_qrN, eta_qrNtile(nSx,nSy)
       _RL    eta_qrNM1, recip_eta_qrNM1
@@ -133,15 +131,7 @@ CEOP
       ENDIF
 #endif /* ALLOW_AUTODIFF_TAMC */
 
-#ifdef ALLOW_AUTODIFF_TAMC
-      act1 = myThid - 1
-      max1 = nTx*nTy
-      act2 = ikey_dynamics - 1
-      ikey = (act1 + 1) + act2*max1
-#endif /* ALLOW_AUTODIFF_TAMC */
-
 C--   Initialise auxiliary constant, some output variable and inverter
-      cg2dTolerance_sq = cg2dTolerance*cg2dTolerance
       minResidualSq = -1. _d 0
       eta_qrNM1     =  1. _d 0
       recip_eta_qrNM1= 1. _d 0
@@ -184,8 +174,8 @@ C--   Update overlaps
 
 C--   Initial residual calculation
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE cg2d_b = comlev1_cg2d, key = ikey, byte = isbyte
-CADJ STORE cg2d_x = comlev1_cg2d, key = ikey, byte = isbyte
+CADJ STORE cg2d_b = comlev1_cg2d, key = ikey_dynamics, byte = isbyte
+CADJ STORE cg2d_x = comlev1_cg2d, key = ikey_dynamics, byte = isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
       DO bj=myByLo(myThid),myByHi(myThid)
        DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -236,7 +226,7 @@ c     CALL EXCH_S3D_RL( cg2d_r, 1, myThid )
       IF ( debugLevel .GE. debLevZero ) THEN
         _BEGIN_MASTER( myThid )
         printResidual = printResidualFreq.GE.1
-        WRITE(standardmessageunit,'(A,1P2E22.14)')
+        WRITE(standardMessageUnit,'(A,1P2E22.14)')
      &  ' cg2d_nsa: Sum(rhs),rhsMax = ', sumRHS,rhsMax
         _END_MASTER( myThid )
       ENDIF
@@ -254,8 +244,8 @@ CML      it2d = it2d+1
 #endif /* ALLOW_LOOP_DIRECTIVE */
 
 #ifdef ALLOW_AUTODIFF_TAMC
-       icg2dkey = (ikey-1)*numItersMax + it2d
-CADJ STORE err_sq = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
+       ikey = it2d + (ikey_dynamics-1)*numItersMax
+CADJ STORE err_sq = comlev1_cg2d_iter, key = ikey, byte = isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
        IF ( it2d .LE. cg2dMinItersNSA .OR.
      &      err_sq .GE. cg2dTolerance_sq ) THEN
@@ -263,8 +253,8 @@ CADJ STORE err_sq = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
 C--    Solve preconditioning equation and update
 C--    conjugate direction vector "s".
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE cg2d_r = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
-CADJ STORE cg2d_s = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
+CADJ STORE cg2d_r = comlev1_cg2d_iter, key = ikey, byte = isbyte
+CADJ STORE cg2d_s = comlev1_cg2d_iter, key = ikey, byte = isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
        DO bj=myByLo(myThid),myByHi(myThid)
         DO bi=myBxLo(myThid),myBxHi(myThid)
@@ -286,8 +276,8 @@ CADJ STORE cg2d_s = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
 
        CALL GLOBAL_SUM_TILE_RL( eta_qrNtile,eta_qrN,myThid )
 #ifdef ALLOW_AUTODIFF_TAMC
-CMLCADJ STORE eta_qrNM1 = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
-CADJ STORE recip_eta_qrNM1 = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
+CMLCADJ STORE eta_qrNM1 = comlev1_cg2d_iter, key = ikey, byte = isbyte
+CADJ STORE recip_eta_qrNM1 = comlev1_cg2d_iter, key=ikey, byte=isbyte
 #endif /* ALLOW_AUTODIFF_TAMC */
 CML       cgBeta   = eta_qrN/eta_qrNM1
        cgBeta   = eta_qrN*recip_eta_qrNM1
@@ -317,7 +307,7 @@ C==    Evaluate laplace operator on conjugate gradient vector
 C==    q = A.s
 #ifdef ALLOW_AUTODIFF_TAMC
 #ifndef ALLOW_LOOP_DIRECTIVE
-CADJ STORE cg2d_s = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
+CADJ STORE cg2d_s = comlev1_cg2d_iter, key = ikey, byte = isbyte
 #endif /* not ALLOW_LOOP_DIRECTIVE */
 #endif /* ALLOW_AUTODIFF_TAMC */
        DO bj=myByLo(myThid),myByHi(myThid)
@@ -345,7 +335,7 @@ C==    Update simultaneously solution and residual vectors (and Iter number)
 C      Now compute "interior" points.
 #ifdef ALLOW_AUTODIFF_TAMC
 #ifndef ALLOW_LOOP_DIRECTIVE
-CADJ STORE cg2d_r = comlev1_cg2d_iter, key = icg2dkey, byte = isbyte
+CADJ STORE cg2d_r = comlev1_cg2d_iter, key = ikey, byte = isbyte
 #endif /* ALLOW_LOOP_DIRECTIVE */
 #endif /* ALLOW_AUTODIFF_TAMC */
        DO bj=myByLo(myThid),myByHi(myThid)
@@ -409,7 +399,7 @@ C--   Return parameters to caller
 
 #if ((defined ALLOW_AUTODIFF_TAMC) && (defined ALLOW_LOOP_DIRECTIVE))
 
-C     These routines are routinely part of the TAMC/TAF library that is
+C     These routines are routinely part of the TAF library that is
 C     not included in the MITcgm, therefore they are mimicked here.
 
       SUBROUTINE ADSTORE(chardum,int1,idow,int2,int3,icount)

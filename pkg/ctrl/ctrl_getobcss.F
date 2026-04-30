@@ -28,14 +28,14 @@ c     == global variables ==
 #include "SIZE.h"
 #include "PARAMS.h"
 #include "GRID.h"
-c#include "OBCS_PARAMS.h"
+#include "OBCS_PARAMS.h"
 #include "OBCS_GRID.h"
 #include "OBCS_FIELDS.h"
 #include "CTRL_SIZE.h"
-#include "ctrl.h"
-#include "ctrl_dummy.h"
+#include "CTRL.h"
+#include "CTRL_DUMMY.h"
 #include "CTRL_OBCS.h"
-#include "optim.h"
+#include "OPTIMCYCLE.h"
 #endif /* ALLOW_OBCSS_CONTROL */
 
 c     == routine arguments ==
@@ -43,7 +43,7 @@ c     == routine arguments ==
       integer myIter
       integer myThid
 
-#ifdef ALLOW_OBCSS_CONTROL
+#if ( defined ALLOW_OBCS_SOUTH && defined ALLOW_OBCSS_CONTROL )
 c     == external functions ==
       integer  ilnblnk
       external ilnblnk
@@ -66,12 +66,13 @@ cgg      _RL maskxz   (1-OLx:sNx+OLx,Nr,nSx,nSy)
       _RL tmpfldxz (1-OLx:sNx+OLx,Nr,nSx,nSy)
       logical doglobalread
       logical ladinit
-      character*(80) fnameobcss
+      character*(MAX_LEN_FNAM) fnameobcss
 #ifdef ALLOW_OBCS_CONTROL_MODES
       integer nk,nz
       _RL     tmpz (Nr,nSx,nSy)
       _RL     stmp
 #endif
+      integer ilDir
 
 c     == end of interface ==
 
@@ -87,10 +88,13 @@ c--   Now, read the control vector.
       doglobalread = .false.
       ladinit      = .false.
 
+c     Find ctrlDir (w/o trailing blanks) length
+      ilDir = ilnblnk(ctrlDir)
+
       if (optimcycle .ge. 0) then
        ilobcss=ilnblnk( xx_obcss_file )
-       write(fnameobcss(1:80),'(2a,i10.10)')
-     &      xx_obcss_file(1:ilobcss), '.', optimcycle
+       write(fnameobcss,'(2a,i10.10)')
+     &      ctrlDir(1:ilDir)//xx_obcss_file(1:ilobcss), '.', optimcycle
       endif
 
 c--   Get the counters, flags, and the interpolation factor.
@@ -103,10 +107,15 @@ c--   Get the counters, flags, and the interpolation factor.
       do iobcs = 1,nobcs
 
        if ( obcssfirst ) then
+#ifdef ALLOW_AUTODIFF
         call active_read_xz( fnameobcss, tmpfldxz,
      &                       (obcsscount0-1)*nobcs+iobcs,
      &                       doglobalread, ladinit, optimcycle,
-     &                       mythid, xx_obcss_dummy )
+     &                       myThid, xx_obcss_dummy )
+#else
+        CALL READ_REC_XZ_RL( fnameobcss, ctrlprec, Nr, tmpfldxz,
+     &                       (obcsscount0-1)*nobcs+iobcs, 1, myThid )
+#endif
 
         do bj = jtlo,jthi
          do bi = itlo,ithi
@@ -172,10 +181,15 @@ cgg   &                                        *   maskxz (i,k,bi,bj)
          enddo
         enddo
 
+#ifdef ALLOW_AUTODIFF
         call active_read_xz( fnameobcss, tmpfldxz,
      &                       (obcsscount1-1)*nobcs+iobcs,
      &                       doglobalread, ladinit, optimcycle,
-     &                       mythid, xx_obcss_dummy )
+     &                       myThid, xx_obcss_dummy )
+#else
+        CALL READ_REC_XZ_RL( fnameobcss, ctrlprec, Nr, tmpfldxz,
+     &                       (obcsscount1-1)*nobcs+iobcs, 1, myThid )
+#endif
 
         do bj = jtlo,jthi
          do bi = itlo,ithi
@@ -269,7 +283,7 @@ c--   Calculate mask for tracer cells (0 => land, 1 => water).
 C--   End over iobcs loop
       enddo
 
-#endif /* ALLOW_OBCSS_CONTROL */
+#endif /* defined ALLOW_OBCS_SOUTH && defined ALLOW_OBCSS_CONTROL */
 
       return
       end

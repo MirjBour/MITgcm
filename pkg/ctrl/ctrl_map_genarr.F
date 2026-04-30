@@ -17,7 +17,7 @@ C     *=================================================================
 C     | SUBROUTINE CTRL_MAP_GENARR2D
 C     | Add the generic 2D-arrays of the
 C     | control vector to the model state and update the tile halos.
-C     | The control vector is defined in the header file "ctrl.h".
+C     | The control vector is defined in the header file "CTRL.h".
 C     *=================================================================
 C     \ev
 
@@ -31,10 +31,10 @@ C     == global variables ==
 #include "GRID.h"
 
 #include "CTRL_SIZE.h"
-#include "ctrl.h"
-#include "optim.h"
+#include "CTRL.h"
+#include "OPTIMCYCLE.h"
 #include "CTRL_GENARR.h"
-#include "ctrl_dummy.h"
+#include "CTRL_DUMMY.h"
 
 C     !INPUT/OUTPUT PARAMETERS:
       _RL     fld(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -55,27 +55,35 @@ C     !LOCAL VARIABLES:
       LOGICAL doscaling
       LOGICAL dolog10ctrl
       _RL log10initval
+      _RL ln10
       _RL xx_gen  (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      CHARACTER*(80) fnamegenIn
-      CHARACTER*(80) fnamegenOut
+      CHARACTER*(MAX_LEN_FNAM) fnamegenIn
+      CHARACTER*(MAX_LEN_FNAM) fnamegenOut
       CHARACTER*(MAX_LEN_FNAM) fnamebase
       INTEGER ilgen
       LOGICAL doglobalread
       LOGICAL ladinit
       _RS mask2D (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
+      INTEGER ilDir
 CEOP
 
-c--   Now, read the control vector.
+#ifdef ALLOW_DEBUG
+      IF (debugMode) CALL DEBUG_ENTER('CTRL_MAP_GENARR2D', myThid )
+#endif
+C--   Now, read the control vector.
       doglobalread = .FALSE.
       ladinit      = .FALSE.
 
+#ifndef ALLOW_TAPENADE
       CALL CTRL_ASSIGN(xx_gen, 1, zeroRL, myThid)
+#endif
 
       dosmooth=.FALSE.
       dowc01  = .FALSE.
       doscaling=.TRUE.
       dolog10ctrl=.FALSE.
       log10initval=0. _d 0
+      ln10 = LOG(10. _d 0)
 
       numsmo = 1
       DO k2 = 1, maxCtrlProc
@@ -94,9 +102,9 @@ c--   Now, read the control vector.
           doscaling = .FALSE.
         ENDIF
         IF (xx_genarr2d_preproc_c(k2,iarr).EQ.'log10ctrl') THEN
-c             fld := log10(xx_gen)
-c               with initial guess for xx_gen set to log10initval
-c               passed to data.ctrl, (default = 0.0)
+C             fld := log10(xx_gen)
+C               with initial guess for xx_gen set to log10initval
+C               passed to data.ctrl, (default = 0.0)
           dolog10ctrl=.TRUE.
           log10initval = xx_genarr2d_preproc_r(k2,iarr)
         ENDIF
@@ -104,10 +112,12 @@ c               passed to data.ctrl, (default = 0.0)
 
       fnamebase = xx_genarr2d_file(iarr)
       ilgen = ILNBLNK( fnamebase )
-      WRITE(fnamegenIn(1:80),'(2A,I10.10)')
-     &       fnamebase(1:ilgen),'.',optimcycle
-      WRITE(fnamegenOut(1:80),'(2A,I10.10)')
-     &       fnamebase(1:ilgen),'.effective.',optimcycle
+C     Find ctrlDir (w/o trailing blanks) length
+      ilDir = ilnblnk(ctrlDir)
+      WRITE(fnamegenIn,'(2A,I10.10)')
+     & ctrlDir(1:ilDir)//fnamebase(1:ilgen),'.',optimcycle
+      WRITE(fnamegenOut,'(2A,I10.10)')
+     & ctrlDir(1:ilDir)//fnamebase(1:ilgen),'.effective.',optimcycle
 
       CALL READ_REC_3D_RL( xx_genarr2d_weight(iarr), ctrlprec, 1,
      &          wgenarr2d(1-OLx,1-OLy,1,1,iarr), 1, 1, myThid )
@@ -132,42 +142,62 @@ C --- Do any smoothing
 
       DO bj=myByLo(myThid), myByHi(myThid)
        DO bi=myBxLo(myThid), myBxHi(myThid)
-        DO j = 1,sNy
-         DO i = 1,sNx
-c scale param adjustment
-          IF ( (mask2D(i,j,bi,bj).NE.0.).AND.
-     &         (wgenarr2d(i,j,bi,bj,iarr).GT.0.) ) THEN
-           IF (doscaling) THEN
+        IF (doscaling) THEN
+         DO j = 1,sNy
+          DO i = 1,sNx
+C scale param adjustment
+           IF ( wgenarr2d(i,j,bi,bj,iarr).GT.0. ) THEN
             xx_gen(i,j,bi,bj) = xx_gen(i,j,bi,bj)
-     &               /SQRT( wgenarr2d(i,j,bi,bj,iarr) )
+     &               / SQRT( wgenarr2d(i,j,bi,bj,iarr) )
             IF (dolog10ctrl) THEN
              xx_gen(i,j,bi,bj) = xx_gen(i,j,bi,bj) + log10initval
-             xx_gen(i,j,bi,bj) = 10.0 ** xx_gen(i,j,bi,bj)
-            ENDIF ! log10ctrls
-           ENDIF ! doscaling
-          ELSE
-           xx_gen(i,j,bi,bj) = 0.
-          ENDIF
-c add to model parameter
-c or in case of log10ctrl, fld = 10^(xx_gen)
-          IF ( .NOT. dolog10ctrl ) THEN
-           fld(i,j,bi,bj) = fld(i,j,bi,bj)+xx_gen(i,j,bi,bj)
-          ELSE
-           fld(i,j,bi,bj) = xx_gen(i,j,bi,bj)
-          ENDIF
+c            xx_gen(i,j,bi,bj) = 10.0 ** xx_gen(i,j,bi,bj)
+C     this is faster, especially if log(10) has been evaluated before
+c            xx_gen(i,j,bi,bj) = EXP(LOG(10.0) * xx_gen(i,j,bi,bj))
+             xx_gen(i,j,bi,bj) = EXP(ln10 * xx_gen(i,j,bi,bj))
+            ENDIF ! dolog10ctrls
+           ELSE
+            xx_gen(i,j,bi,bj) = 0. _d 0
+           ENDIF
+          ENDDO
          ENDDO
-        ENDDO
+        ENDIF ! doscaling
+C add to model parameter
+C or in case of log10ctrl, fld = 10^(xx_gen)
+        IF (dolog10ctrl) THEN
+         DO j = 1,sNy
+          DO i = 1,sNx
+           fld(i,j,bi,bj) = xx_gen(i,j,bi,bj)*mask2D(i,j,bi,bj)
+          ENDDO
+         ENDDO
+        ELSE
+         DO j = 1,sNy
+          DO i = 1,sNx
+           fld(i,j,bi,bj) = fld(i,j,bi,bj)
+     &           + xx_gen(i,j,bi,bj)*mask2D(i,j,bi,bj)
+          ENDDO
+         ENDDO
+        ENDIF ! dolog10ctrls
        ENDDO
       ENDDO
 
-c avoid param out of [boundsVec(1) boundsVec(4)]
+C avoid param out of [boundsVec(1) boundsVec(4)]
       CALL CTRL_BOUND_2D(fld,mask2D,xx_genarr2d_bounds(1,iarr),myThid)
 
       CALL EXCH_XY_RL( fld, myThid )
 
+#ifdef ALLOW_TAPENADE
+C$AD DO-NOT-DIFF
+#endif
       CALL WRITE_REC_3D_RL( fnamegenOut, ctrlprec, 1,
      &                      fld, 1, optimcycle, myThid )
+#ifdef ALLOW_TAPENADE
+C$AD END-DO-NOT-DIFF
+#endif
 
+#ifdef ALLOW_DEBUG
+      IF (debugMode) CALL DEBUG_LEAVE('CTRL_MAP_GENARR2D', myThid )
+#endif
 #endif /* ALLOW_GENARR2D_CONTROL */
 
       RETURN
@@ -185,7 +215,7 @@ C     *=================================================================
 C     | SUBROUTINE CTRL_MAP_GENARR3D
 C     | Add the generic 3D-arrays of the
 C     | control vector to the model state and update the tile halos.
-C     | The control vector is defined in the header file "ctrl.h".
+C     | The control vector is defined in the header file "CTRL.h".
 C     *=================================================================
 C     \ev
 
@@ -199,10 +229,10 @@ C     == global variables ==
 #include "GRID.h"
 
 #include "CTRL_SIZE.h"
-#include "ctrl.h"
-#include "optim.h"
+#include "CTRL.h"
+#include "OPTIMCYCLE.h"
 #include "CTRL_GENARR.h"
-#include "ctrl_dummy.h"
+#include "CTRL_DUMMY.h"
 
 C     !INPUT/OUTPUT PARAMETERS:
       _RL     fld(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
@@ -228,27 +258,31 @@ C     !LOCAL VARIABLES:
       _RL log10initval
       _RL ln10
       _RL xx_gen(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
-      CHARACTER*(80) fnamegenIn
-      CHARACTER*(80) fnamegenOut
+      CHARACTER*(MAX_LEN_FNAM) fnamegenIn
+      CHARACTER*(MAX_LEN_FNAM) fnamegenOut
       CHARACTER*(MAX_LEN_FNAM) fnamebase
       INTEGER ilgen
       LOGICAL doglobalread
       LOGICAL ladinit
       _RS mask3D(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy)
+      INTEGER ilDir
 CEOP
 
-c--   Now, read the control vector.
+#ifdef ALLOW_DEBUG
+      IF (debugMode) CALL DEBUG_ENTER('CTRL_MAP_GENARR3D', myThid )
+#endif
+C--   Now, read the control vector.
       doglobalread = .FALSE.
       ladinit      = .FALSE.
-
+#ifndef ALLOW_TAPENADE
       CALL CTRL_ASSIGN(xx_gen, Nr, zeroRL, myThid)
-
+#endif
       dosmooth=.FALSE.
       dowc01  = .FALSE.
       doscaling=.TRUE.
       dolog10ctrl=.FALSE.
       log10initval=0. _d 0
-      ln10 = LOG(10.0D0)
+      ln10 = LOG(10. _d 0)
 
       numsmo = 1
       DO k2 = 1, maxCtrlProc
@@ -267,9 +301,9 @@ c--   Now, read the control vector.
           doscaling = .FALSE.
         ENDIF
         IF (xx_genarr3d_preproc_c(k2,iarr).EQ.'log10ctrl') THEN
-c             fld := log10(xx_gen)
-c               with initial guess for xx_gen set to log10initval
-c               passed to data.ctrl, (default = 0.0)
+C             fld := log10(xx_gen)
+C               with initial guess for xx_gen set to log10initval
+C               passed to data.ctrl, (default = 0.0)
           dolog10ctrl=.TRUE.
           log10initval = xx_genarr3d_preproc_r(k2,iarr)
         ENDIF
@@ -277,10 +311,12 @@ c               passed to data.ctrl, (default = 0.0)
 
       fnamebase = xx_genarr3d_file(iarr)
       ilgen = ILNBLNK( fnamebase )
-      WRITE(fnamegenIn(1:80),'(2a,i10.10)')
-     &       fnamebase(1:ilgen),'.',optimcycle
-      WRITE(fnamegenOut(1:80),'(2a,i10.10)')
-     &       fnamebase(1:ilgen),'.effective.',optimcycle
+C     Find ctrlDir (w/o trailing blanks) length
+      ilDir = ilnblnk(ctrlDir)
+      WRITE(fnamegenIn,'(2a,i10.10)')
+     & ctrlDir(1:ilDir)//fnamebase(1:ilgen),'.',optimcycle
+      WRITE(fnamegenOut,'(2a,i10.10)')
+     & ctrlDir(1:ilDir)//fnamebase(1:ilgen),'.effective.',optimcycle
 
       CALL READ_REC_3D_RL( xx_genarr3d_weight(iarr), ctrlprec, Nr,
      &          wgenarr3d(1-OLx,1-OLy,1,1,1,iarr), 1, 1, myThid )
@@ -306,27 +342,35 @@ C --- Do any smoothing
       DO bj=myByLo(myThid), myByHi(myThid)
        DO bi=myBxLo(myThid), myBxHi(myThid)
         IF (doscaling) THEN
-c     scale param adjustment
+C     scale param adjustment
          DO k = 1,Nr
           DO j = 1,sNy
            DO i = 1,sNx
             IF ( wgenarr3d(i,j,k,bi,bj,iarr).GT.0. ) THEN
-             xx_gen(i,j,k,bi,bj)=xx_gen(i,j,k,bi,bj)
-     &                /SQRT( wgenarr3d(i,j,k,bi,bj,iarr) )
+             xx_gen(i,j,k,bi,bj) = xx_gen(i,j,k,bi,bj)
+     &                / SQRT( wgenarr3d(i,j,k,bi,bj,iarr) )
+             IF (dolog10ctrl) THEN
+              xx_gen(i,j,k,bi,bj) = xx_gen(i,j,k,bi,bj) + log10initval
+c             xx_gen(i,j,k,bi,bj) = 10.0 ** xx_gen(i,j,k,bi,bj)
+C     this is faster, especially if log(10) has been evaluated before
+c             xx_gen(i,j,k,bi,bj) = EXP(LOG(10.0) * xx_gen(i,j,k,bi,bj))
+              xx_gen(i,j,k,bi,bj) = EXP(ln10 * xx_gen(i,j,k,bi,bj))
+             ENDIF
+            ELSE
+             xx_gen(i,j,k,bi,bj) = 0. _d 0
             ENDIF
            ENDDO
           ENDDO
          ENDDO
-c     doscaling
+C     doscaling
         ENDIF
-c     add to model parameter
-c     or in case of log10ctrl, fld = 10^(xx_gen)
-        IF ( .NOT. dolog10ctrl ) THEN
+C     add to model parameter
+C     or in case of log10ctrl, fld = 10^(xx_gen)
+        IF ( dolog10ctrl ) THEN
          DO k = 1,Nr
           DO j = 1,sNy
            DO i = 1,sNx
-            fld(i,j,k,bi,bj)=fld(i,j,k,bi,bj)
-     &           + xx_gen(i,j,k,bi,bj)*mask3D(i,j,k,bi,bj)
+            fld(i,j,k,bi,bj) = xx_gen(i,j,k,bi,bj)*mask3D(i,j,k,bi,bj)
            ENDDO
           ENDDO
          ENDDO
@@ -334,21 +378,17 @@ c     or in case of log10ctrl, fld = 10^(xx_gen)
          DO k = 1,Nr
           DO j = 1,sNy
            DO i = 1,sNx
-            xx_gen(i,j,k,bi,bj) = xx_gen(i,j,k,bi,bj) + log10initval
-C           xx_gen(i,j,k,bi,bj) = 10.0 ** xx_gen(i,j,k,bi,bj)
-C     this is faster, especially if log(10) has been evaluated before
-C           xx_gen(i,j,k,bi,bj) = EXP(LOG(10.0) * xx_gen(i,j,k,bi,bj))
-            xx_gen(i,j,k,bi,bj) = EXP(ln10 * xx_gen(i,j,k,bi,bj))
-            fld(i,j,k,bi,bj)=xx_gen(i,j,k,bi,bj)*mask3D(i,j,k,bi,bj)
+            fld(i,j,k,bi,bj) = fld(i,j,k,bi,bj)
+     &           + xx_gen(i,j,k,bi,bj)*mask3D(i,j,k,bi,bj)
            ENDDO
           ENDDO
          ENDDO
         ENDIF
-c     end bi/bj-loops
+C     end bi/bj-loops
        ENDDO
       ENDDO
 
-c avoid param out of [boundsVec(1) boundsVec(4)]
+C avoid param out of [boundsVec(1) boundsVec(4)]
       CALL CTRL_BOUND_3D(fld,mask3D,xx_genarr3d_bounds(1,iarr),myThid)
 
 C The tile exchange for xx_uvel and xx_vvel will be
@@ -358,9 +398,18 @@ C  xx_uvel and xx_vvel are read in.
      &    xx_genarr3d_file(iarr)(1:7).NE.'xx_vvel')
      &    CALL EXCH_XYZ_RL( fld, myThid )
 
+#ifdef ALLOW_TAPENADE
+C$AD DO-NOT-DIFF
+#endif
       CALL WRITE_REC_3D_RL( fnamegenOut, ctrlprec, Nr,
      &                      fld, 1, optimcycle, myThid )
+#ifdef ALLOW_TAPENADE
+C$AD END-DO-NOT-DIFF
+#endif
 
+#ifdef ALLOW_DEBUG
+      IF (debugMode) CALL DEBUG_LEAVE('CTRL_MAP_GENARR3D', myThid )
+#endif
 #endif /* ALLOW_GENARR3D_CONTROL */
 #endif /* ALLOW_OPENAD */
 

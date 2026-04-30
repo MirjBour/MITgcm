@@ -311,17 +311,17 @@ coefficient :math:`K_x`
       \gamma_m \, = \, 0 \\
        ~ \\
       \gamma_s \, = \, C_s 
-      \frac{\overline{w s_0}}{w_s(\sigma) h} \\
+      \dfrac{\overline{w s_0}}{w_s(\sigma) h} \\
        ~ \\
       \gamma_{\theta} \, = \, C_s
-      \frac{\overline{w \theta_0}+\overline{w \theta_R}}{w_s(\sigma) h} \\
+      \dfrac{\overline{w \theta_0}+\overline{w \theta_R}}{w_s(\sigma) h} \\
       \end{array}
       \right\} 
       &
       \zeta \, < \, 0 \\
       \end{array}\end{aligned}
 
-In practice, the routine peforms the following tasks:
+In practice, the routine performs the following tasks:
 
 #. compute velocity scales at hbl
 
@@ -450,7 +450,7 @@ Diagnostics output is available via the diagnostics package (see Section
      KPPghat | 23 |SM  |s/m^2           |Nonlocal transport coefficient
      KPPhbl  |  1 |SM  |m               |KPP boundary layer depth, bulk Ri criterion
      KPPmld  |  1 |SM  |m               |Mixed layer depth, dT=.8degC density criterion
-     KPPfrac |  1 |SM  |                |Short-wave flux fraction penetrating mixing layer
+     KPPfrac |  1 |SM  |                |Short-wave flux fraction heating the mixing layer
 
 
 Reference experiments

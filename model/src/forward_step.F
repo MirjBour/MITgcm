@@ -22,6 +22,9 @@
 #ifdef ALLOW_SEAICE
 # include "SEAICE_OPTIONS.h"
 #endif
+#ifdef ALLOW_SALT_PLUME
+# include "SALT_PLUME_OPTIONS.h"
+#endif
 #ifdef ALLOW_PTRACERS
 # include "PTRACERS_OPTIONS.h"
 #endif
@@ -51,6 +54,9 @@
 #endif
 #ifdef ALLOW_ECCO
 # include "ECCO_OPTIONS.h"
+#endif
+#ifdef ALLOW_RBCS
+# include "RBCS_OPTIONS.h"
 #endif
 
 #define ALLOW_MOM_STEPPING
@@ -212,8 +218,6 @@ C       |-- STEP_FIZHI_CORR
 C       |
 C       |-- FLT_MAIN
 C       |
-C       |-- DO_STATEVARS_TAVE
-C       |
 C       |-- NEST_PARENT_IO_2
 C       |-- NEST_CHILD_TRANSP
 C       |
@@ -256,7 +260,6 @@ C     == Global variables ==
 #endif
 
 #ifdef ALLOW_AUTODIFF
-# include "AUTODIFF_MYFIELDS.h"
 # include "FFIELDS.h"
 # include "SURFACE.h"
 
@@ -265,8 +268,8 @@ C     == Global variables ==
 # endif
 # ifdef ALLOW_CTRL
 #  include "CTRL_SIZE.h"
-#  include "ctrl.h"
-#  include "ctrl_dummy.h"
+#  include "CTRL.h"
+#  include "CTRL_DUMMY.h"
 #  include "CTRL_GENARR.h"
 #  include "CTRL_OBCS.h"
 # endif
@@ -375,6 +378,19 @@ C     == Global variables ==
 #  include "CG2D.h"
 # endif
 #endif /* ALLOW_AUTODIFF */
+
+#ifdef ALLOW_TAPENADE
+c# ifdef ALLOW_KPP
+c#  include "KPP_PARAMS.h"
+c# endif
+# ifdef ALLOW_MOM_FLUXFORM
+#  include "MOM_FLUXFORM.h"
+# endif
+# ifdef ALLOW_EXF
+#  include "EXF_PARAM.h"
+#  include "EXF_INTERP_PARAM.h"
+# endif
+#endif /* ALLOW_TAPENADE */
 
 C     !INPUT/OUTPUT PARAMETERS:
 C     == Routine arguments ==
@@ -488,7 +504,7 @@ C--   Switch on/off individual tracer time-stepping
 C--   Switch on/off diagnostics for snap-shot output:
 #ifdef ALLOW_DIAGNOSTICS
       IF ( useDiagnostics ) THEN
-        CALL DIAGNOSTICS_SWITCH_ONOFF( myTime, myIter, myThid )
+        CALL DIAGNOSTICS_SWITCH_ONOFF( 1, myTime, myIter, myThid )
 C--   State-variables diagnostics
         CALL TIMER_START('DO_STATEVARS_DIAGS  [FORWARD_STEP]',myThid)
         CALL DO_STATEVARS_DIAGS( myTime, 0, myIter, myThid )
@@ -614,23 +630,22 @@ C--     Step forward fields and calculate time tendency terms.
 # ifdef ALLOW_KPP
 CADJ STORE uVel, vVel = comlev1, key = ikey_dynamics, kind = isbyte
 # endif /* ALLOW_KPP */
-# ifdef EXACT_CONSERV
 CADJ STORE EmPmR      = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE PmEpR      = comlev1, key = ikey_dynamics, kind = isbyte
-# endif
 # ifdef ALLOW_OBCS
 CADJ STORE salt       = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE totphihyd  = comlev1, key = ikey_dynamics, kind = isbyte
-#  ifdef ALLOW_OBCS_STEVENS
-CADJ STORE gsNm1      = comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE gtNm1      = comlev1, key = ikey_dynamics, kind = isbyte
-#  endif
 # endif /* ALLOW_OBCS */
 # ifdef ALLOW_PTRACERS
 CADJ STORE pTracer    = comlev1, key = ikey_dynamics, kind = isbyte
 # endif /* ALLOW_PTRACERS */
 # ifdef ALLOW_DEPTH_CONTROL
 CADJ STORE hFacC      = comlev1, key = ikey_dynamics, kind = isbyte
+#  ifdef ALLOW_SEAICE
+CADJ STORE hFacS      = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE hFacW      = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE recip_hFacC= comlev1, key = ikey_dynamics, kind = isbyte
+#  endif
 # endif
 #endif /* ALLOW_AUTODIFF_TAMC */
 
@@ -854,9 +869,7 @@ C-    update CG2D matrix (and preconditioner)
         CALL TIMER_STOP ('UPDATE_CG2D         [FORWARD_STEP]',myThid)
       ENDIF
 # ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE aW2d, aS2d, aC2d =
-CADJ &     comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE pC, pS, pW =
+CADJ STORE aW2d, aS2d, aC2d, pC, pS, pW =
 CADJ &     comlev1, key = ikey_dynamics, kind = isbyte
 # endif
 #endif /* NONLIN_FRSURF or ALLOW_SOLVE4_PS_AND_DRAG */
@@ -865,24 +878,13 @@ C--   Apply Filters to u*,v* before SOLVE_FOR_PRESSURE
 #ifdef ALLOW_SHAP_FILT
       IF (useSHAP_FILT .AND. shap_filt_uvStar) THEN
         CALL TIMER_START('SHAP_FILT_UV        [FORWARD_STEP]',myThid)
-        IF (implicDiv2DFlow.LT.1.) THEN
-C--   Explicit+Implicit part of the Barotropic Flow Divergence
-C      => Filtering of uVel,vVel is necessary
-          CALL SHAP_FILT_APPLY_UV( uVel,vVel,
-     &                             myTime, myIter, myThid )
-        ENDIF
-        CALL SHAP_FILT_APPLY_UV( gU,gV,myTime,myIter,myThid)
+        CALL SHAP_FILT_APPLY_UV( gU, gV, myTime, myIter, myThid )
         CALL TIMER_STOP ('SHAP_FILT_UV        [FORWARD_STEP]',myThid)
       ENDIF
 #endif
 #ifdef ALLOW_ZONAL_FILT
       IF (useZONAL_FILT .AND. zonal_filt_uvStar) THEN
         CALL TIMER_START('ZONAL_FILT_UV       [FORWARD_STEP]',myThid)
-        IF (implicDiv2DFlow.LT.1.) THEN
-C--   Explicit+Implicit part of the Barotropic Flow Divergence
-C      => Filtering of uVel,vVel is necessary
-          CALL ZONAL_FILT_APPLY_UV( uVel, vVel, myThid )
-        ENDIF
         CALL ZONAL_FILT_APPLY_UV( gU, gV, myThid )
         CALL TIMER_STOP ('ZONAL_FILT_UV       [FORWARD_STEP]',myThid)
       ENDIF
@@ -894,20 +896,11 @@ C     three-dimensional for non-hydrostatic and/or IGW scheme.
       IF ( momStepping ) THEN
 #ifdef ALLOW_AUTODIFF_TAMC
 # if (defined NONLIN_FRSURF) || (defined ALLOW_DEPTH_CONTROL)
-CADJ STORE uVel, vVel
-CADJ &     = comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE EmPmR,hFacS,hFacW
-CADJ &     = comlev1, key = ikey_dynamics, kind = isbyte
-# endif
-#if ( defined NONLIN_FRSURF || defined ALLOW_SOLVE4_PS_AND_DRAG )
-CADJ STORE aW2d, aS2d, aC2d =
-CADJ &     comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE pC, pS, pW =
-CADJ &     comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE hFacS, hFacW = comlev1, key = ikey_dynamics, kind = isbyte
 # endif
 #endif
         CALL TIMER_START('SOLVE_FOR_PRESSURE  [FORWARD_STEP]',myThid)
-        CALL SOLVE_FOR_PRESSURE(myTime, myIter, myThid)
+        CALL SOLVE_FOR_PRESSURE( myTime, myIter, myThid )
         CALL TIMER_STOP ('SOLVE_FOR_PRESSURE  [FORWARD_STEP]',myThid)
       ENDIF
 
@@ -916,14 +909,8 @@ C--   Correct divergence in flow field and cycle time-stepping momentum
 #ifndef ALLOW_AUTODIFF
       IF ( momStepping ) THEN
 #endif
-#ifdef ALLOW_AUTODIFF_TAMC
-# ifdef ALLOW_DEPTH_CONTROL
-CADJ STORE etaN, uVel,vVel
-CADJ &     = comlev1, key = ikey_dynamics, kind = isbyte
-# endif /* ALLOW_DEPTH_CONTROL */
-#endif /* ALLOW_AUTODIFF_TAMC */
         CALL TIMER_START('MOM_CORRECTION_STEP [FORWARD_STEP]',myThid)
-        CALL MOMENTUM_CORRECTION_STEP(myTime, myIter, myThid)
+        CALL MOMENTUM_CORRECTION_STEP( myTime, myIter, myThid )
         CALL TIMER_STOP ('MOM_CORRECTION_STEP [FORWARD_STEP]',myThid)
 #ifndef ALLOW_AUTODIFF
       ENDIF
@@ -941,9 +928,10 @@ C       (+ update "etaN" & "etaH", exact volume conservation):
         CALL TIMER_STOP ('INTEGR_CONTINUITY   [FORWARD_STEP]',myThid)
       ENDIF
 #ifdef ALLOW_AUTODIFF_TAMC
-C--   This simple store directive avoids an (expensive) extra
+C--   These store directives avoid an (expensive) extra
 C     "call solve_for_pressure" in forward_step_ad
 CADJ STORE wVel = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE etaN = comlev1, key = ikey_dynamics, kind = isbyte
 #endif
 
 #ifdef NONLIN_FRSURF
@@ -1146,13 +1134,6 @@ C--   Calculate float trajectories
       ENDIF
 #endif
 
-#ifdef ALLOW_TIMEAVE
-C--   State-variables time-averaging
-      CALL TIMER_START('DO_STATEVARS_TAVE   [FORWARD_STEP]',myThid)
-      CALL DO_STATEVARS_TAVE( myTime, myIter, myThid )
-      CALL TIMER_STOP ('DO_STATEVARS_TAVE   [FORWARD_STEP]',myThid)
-#endif
-
 #ifdef ALLOW_NEST_PARENT
       IF ( useNEST_PARENT) THEN
         CALL NEST_PARENT_IO_2( myTime, myIter, myThid )
@@ -1183,8 +1164,8 @@ C--     this is done after exchanges to allow interpolation
 #endif
 
 #ifdef ALLOW_ECCO
-C--   Diagnoze variables for pkg/ecco averaging and cost function purposes
-      IF ( useECCO ) CALL ECCO_PHYS( myThid )
+C--   Diagnose variables for pkg/ecco averaging and cost function purposes
+      IF ( useECCO ) CALL ECCO_PHYS( myTime, myIter, myThid )
 #endif
 
 C--   Check if it has reached the end of simulation

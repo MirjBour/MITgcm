@@ -53,6 +53,7 @@ C-    2-D forcing fields
           phiTide2d       (i,j,bi,bj) = 0. _d 0
           pLoad           (i,j,bi,bj) = 0. _d 0
           sIceLoad        (i,j,bi,bj) = 0. _d 0
+          gcmSST          (i,j,bi,bj) = 0. _d 0
 #ifdef ALLOW_GEOTHERMAL_FLUX
           geothermalFlux  (i,j,bi,bj) = 0. _d 0
 #endif
@@ -131,6 +132,9 @@ C-    Intermediate surface forcing arrays
           adjustColdSST_diag  (i,j,bi,bj) = 0. _d 0
           lambdaThetaClimRelax(i,j,bi,bj) = 0. _d 0
           lambdaSaltClimRelax (i,j,bi,bj) = 0. _d 0
+#ifdef ALLOW_BALANCE_FLUXES
+          weight2BalanceFlx(i,j,bi,bj) = 0. _d 0
+#endif
           botDragU        (i,j,bi,bj) = 0. _d 0
           botDragV        (i,j,bi,bj) = 0. _d 0
          ENDDO

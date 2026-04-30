@@ -1,7 +1,7 @@
 .. _chap_state_estimation:
 
-Ocean State Estimation Packages
-===============================
+Packages III - Ocean State Estimation
+=====================================
 
 This chapter describes packages that have been introduced for ocean
 state estimation purposes and in relation with automatic differentiation
@@ -15,7 +15,7 @@ ECCO: model-data comparisons using gridded data sets
 
 Author: Gael Forget
 
-The functionalities implemented in :varlink:`pkg/ecco` are: (1) output
+The functionalities implemented in :filelink:`pkg/ecco` are: (1) output
 time-averaged model fields to compare with gridded data sets; (2)
 compute normalized model-data distances (i.e., cost functions); (3)
 compute averages and transports (i.e., integrals). The former is
@@ -159,8 +159,16 @@ records (i.e., a # of months, days, or time steps) per climatological
 cycle. The generic post-processor (:math:`\mathcal{P}` in Eq. :eq:`Jposproc`)
 also allows model-data misfits to be, for example, smoothed in space by setting
 :varlink:`gencost_posproc` to ‘smooth’ and specifying the smoother parameters
-via :varlink:`gencost_posproc_c` and :varlink:`gencost_posproc_i` (see
-:numref:`gencost_ecco_preproc`).  Other options associated with the computation
+via :varlink:`gencost_posproc_c` (name of a smoothing scale file) and
+:varlink:`gencost_posproc_i` (an integer specifying the smoother number of time
+steps, see :numref:`gencost_ecco_preproc`).  The smoothing scale file can be
+be based on the large-scale parameter specified in data.smooth or prepared as
+a factor of the model resolution dxC and dyC.  As an example, one can read in
+offline the model dxC and dyC and create a characteristic length-scale as
+sqrt(dxC^2 + dyC^2), then multiply by a factor of 3 if one wants the smoothed
+(large scale) field to be of length-scale 3x that of the model grid spacing.
+The smoother number of time steps `gencost_posproc_i` can be the same as that
+used in data.smooth.  Other options associated with the computation
 of Eq. :eq:`Jtotal` are summarized in :numref:`gencost_ecco_preproc` and
 further discussed below. Multiple :varlink:`gencost_preproc` /
 :varlink:`gencost_posproc` options may be specified per cost term.
@@ -196,94 +204,109 @@ index for that cost function term.
            on the fly in all 3D cases in :numref:`gencost_ecco_barfile`.
   :name: gencost_ecco_params
 
-  +-----------------------+-----------------------+-----------------------------------+
-  | parameter             | type                  | function                          |
-  +=======================+=======================+===================================+
-  | ``gencost_name``      | character(*)          | Name of cost term                 |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_barfile``   | character(*)          | File to receive model counterpart |
-  |                       |                       | :math:`\vec{m}_i` (See            |
-  |                       |                       | :numref:`gencost_ecco_barfile`)   |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_datafile``  | character(*)          | File containing                   |
-  |                       |                       | observational data                |
-  |                       |                       | :math:`\vec{o}_i`                 |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_avgperiod`` | character(5)          | Averaging period for              |
-  |                       |                       | :math:`\vec{o}_i` and             |
-  |                       |                       | :math:`\vec{m}_i`                 |
-  |                       |                       | (see text)                        |
-  +-----------------------+-----------------------+-----------------------------------+
-  |``gencost_outputlevel``| integer               | Greater than 0 will               |
-  |                       |                       | output misfit fields              |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_errfile``   | character(*)          | Uncertainty field                 |
-  |                       |                       | name (not used in                 |
-  |                       |                       | :numref:`intgen`)                 |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_mask``      | character(*)          | Mask file name root               |
-  |                       |                       | (used only in                     |
-  |                       |                       | :numref:`intgen`)                 |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``mult_gencost``      | real                  | Multiplier                        |
-  |                       |                       | :math:`\alpha_i`                  |
-  |                       |                       | (default: 1)                      |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_preproc``   | character(*)          | Preprocessor names                |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_preproc_c`` | character(*)          | Preprocessor                      |
-  |                       |                       | character arguments               |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_preproc_i`` | integer(*)            | Preprocessor integer              |
-  |                       |                       | arguments                         |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_preproc_r`` | real(*)               | Preprocessor real                 |
-  |                       |                       | arguments                         |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_posproc``   | character(*)          | Post-processor names              |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_posproc_c`` | character(*)          | Post-processor                    |
-  |                       |                       | character arguments               |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_posproc_i`` | integer(*)            | Post-processor                    |
-  |                       |                       | integer arguments                 |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_posproc_r`` | real(*)               | Post-processor real               |
-  |                       |                       | arguments                         |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_spmin``     | real                  | Data less than this               |
-  |                       |                       | value will be omitted             |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_spmax``     | real                  | Data greater than                 |
-  |                       |                       | this value will be                |
-  |                       |                       | omitted                           |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_spzero``    | real                  | Data points equal to              |
-  |                       |                       | this value will be                |
-  |                       |                       | omitted                           |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_startdate1``| integer               | Start date of                     |
-  |                       |                       | observations                      |
-  |                       |                       | (YYYMMDD)                         |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_startdate2``| integer               | Start date of                     |
-  |                       |                       | observations (HHMMSS)             |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_is3d``      | logical               | Needs to be true for              |
-  |                       |                       | 3D fields                         |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_enddate1``  | integer               | Not fully implemented             |
-  |                       |                       | (used only in                     |
-  |                       |                       | :numref:`v4custom`)               |
-  +-----------------------+-----------------------+-----------------------------------+
-  | ``gencost_enddate2``  | integer               | Not fully implemented             |
-  |                       |                       | (used only in                     |
-  |                       |                       | :numref:`v4custom`)               |
-  +-----------------------+-----------------------+-----------------------------------+
-  |``gencost_kLev_select``| integer               | Vertical level of a 3D field to   |
-  |                       |                       | create a 2D field for cost        |
-  |                       |                       | computation                       |
-  +-----------------------+-----------------------+-----------------------------------+
+  +---------------------------+-------------------+-----------------------------------+
+  | parameter                 | type              | function                          |
+  +===========================+===================+===================================+
+  | ``gencost_name``          | character(\*)     | Name of cost term                 |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_barfile``       | character(\*)     | File to receive model counterpart |
+  |                           |                   | :math:`\vec{m}_i` (See            |
+  |                           |                   | :numref:`gencost_ecco_barfile`)   |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_datafile``      | character(\*)     | File containing                   |
+  |                           |                   | observational data                |
+  |                           |                   | :math:`\vec{o}_i`                 |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_avgperiod``     | character(5)      | Averaging period for              |
+  |                           |                   | :math:`\vec{o}_i` and             |
+  |                           |                   | :math:`\vec{m}_i`                 |
+  |                           |                   | (see text)                        |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_outputlevel``   | integer           | Greater than 0 will               |
+  |                           |                   | output misfit fields              |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_errfile``       | character(\*)     | Uncertainty field                 |
+  |                           |                   | name (not used in                 |
+  |                           |                   | :numref:`intgen`)                 |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_mask``          | character(\*)     | Mask file name root               |
+  |                           |                   | (used only in                     |
+  |                           |                   | :numref:`intgen`)                 |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``mult_gencost``          | real              | Multiplier                        |
+  |                           |                   | :math:`\alpha_i`                  |
+  |                           |                   | (default: 1)                      |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_preproc``       | character(\*)     | Preprocessor names                |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_preproc_c``     | character(\*)     | Preprocessor                      |
+  |                           |                   | character arguments               |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_preproc_i``     | integer(\*)       | Preprocessor integer              |
+  |                           |                   | arguments                         |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_preproc_r``     | real(\*)          | Preprocessor real                 |
+  |                           |                   | arguments                         |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_posproc``       | character(\*)     | Post-processor names              |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_posproc_c``     | character(\*)     | Post-processor                    |
+  |                           |                   | character arguments               |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_posproc_i``     | integer(\*)       | Post-processor                    |
+  |                           |                   | integer arguments                 |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_posproc_r``     | real(\*)          | Post-processor real               |
+  |                           |                   | arguments                         |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_spmin``         | real              | Data less than this               |
+  |                           |                   | value will be omitted             |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_spmax``         | real              | Data greater than                 |
+  |                           |                   | this value will be                |
+  |                           |                   | omitted                           |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_spzero``        | real              | Data points equal to              |
+  |                           |                   | this value will be                |
+  |                           |                   | omitted                           |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_startdate1``    | integer           | Start date of                     |
+  |                           |                   | observations                      |
+  |                           |                   | (YYYMMDD)                         |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_startdate2``    | integer           | Start date of                     |
+  |                           |                   | observations (HHMMSS)             |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_is3d``          | logical           | Needs to be true for              |
+  |                           |                   | 3D fields                         |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_enddate1``      | integer           | Not fully implemented             |
+  |                           |                   | (used only in                     |
+  |                           |                   | :numref:`v4custom`)               |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_enddate2``      | integer           | Not fully implemented             |
+  |                           |                   | (used only in                     |
+  |                           |                   | :numref:`v4custom`)               |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_kLev_select``   | integer           | Vertical level of a 3D field to   |
+  |                           |                   | create a 2D field for cost        |
+  |                           |                   | computation                       |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_useDensityMask``| logical           | Needs to be true if density       |
+  |                           |                   | following feature is used         |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_sigmaLow``      | real              | Use to define minimum density     |
+  |                           |                   | surface chosen                    |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_sigmaHigh``     | real              | Used to define maximum density    |
+  |                           |                   | surface chosen                    |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_refPressure``   | real              | Defines reference pressure used   |
+  |                           |                   | in density following feature      |
+  +---------------------------+-------------------+-----------------------------------+
+  | ``gencost_tanhScale``     | real              | Used in defining density levels   |
+  |                           |                   | in density following feature      |
+  +---------------------------+-------------------+-----------------------------------+
 
 .. table:: Implemented ``gencost_barfile`` options (as of checkpoint 65z) that
            can be used via :filelink:`cost_generic.F
@@ -374,7 +397,7 @@ index for that cost function term.
   +=======================+=======================+=======================+
   | ``gencost_preproc``   |                       |                       |
   +-----------------------+-----------------------+-----------------------+
-  | ``clim``              | Use climatological    | integer: no. of       |
+  | ``clim``              | Use climatological    | integer: no. of       |
   |                       | misfits               | records per           |
   |                       |                       | climatological cycle  |
   +-----------------------+-----------------------+-----------------------+
@@ -446,6 +469,29 @@ computed accordingly. In case #2 (‘m_horflux\*’) the ‘W’, ‘S’, and �
 masks should consists of +1, -1, and 0 values and an integrated
 horizontal transport (or overturn) will be computed accordingly.
 
+.. note::
+
+   By default, ``m_boxmean`` cost functions are sums of masked, weighted 
+   variables, where the weight of each cell is the current cell volume 
+   divided by the total masked *initial* volume (sum of masked 
+   ``eccoVol_0``). Note that cell volumes vary in time in the case of 
+   a non-linear free surface (see :numref:`nonlinear-freesurface` 
+   (:ref:`nonlinear-freesurface`)). To obtain a true weighted mean in 
+   the case of a non-linear free surface, please define 
+   ``ECCO_VARIABLE_AREAVOLGLOB`` in ``ECCO_OPTIONS.h``, which instead 
+   uses the total masked current volume to weight contributions.
+
+In order to define a control volume using both a depth range and a
+density range, use a ‘K’ mask and also set
+:varlink:`gencost_useDensityMask` ``=.TRUE.``. When the density range
+feature is active, the control volume is defined at each timestep by
+the bounds set in the ‘K’ mask and also by the density range specified
+by the parameters :varlink:`gencost_sigmaLow` (the minimum density to
+be included in the control volume) and :varlink:`gencost_sigmaHigh`
+(the maximum density to be included in the control volume). As a default
+:varlink:`gencost_refPressure` should be set to 0, but other values can
+be used (e.g. 1000 dbar, 2000 dbar).
+
 .. table:: Implemented :varlink:`gencost_barfile` options (as of checkpoint
            67x) that can be used via :filelink:`cost_gencost_boxmean.F
            <pkg/ecco/cost_gencost_boxmean.F>` (:numref:`intgen`).
@@ -465,6 +511,8 @@ horizontal transport (or overturn) will be computed accordingly.
   +---------------------+----------------------------------+------------------+
   | ``m_boxmean_shihf`` | total shelfice heat flux over box| specify box      |
   +---------------------+----------------------------------+------------------+
+  | ``m_boxmean_vol``   | total volume over box            | specify box      |
+  +---------------------+----------------------------------+------------------+
   | ``m_horflux_vol``   | volume transport through section | specify transect |
   +---------------------+----------------------------------+------------------+
 
@@ -482,10 +530,10 @@ This section (very much a work in progress...) pertains to the special cases of
 :filelink:`cost_gencost_moc.F <pkg/ecco/cost_gencost_moc.>`.  The
 :filelink:`cost_gencost_transp.F <pkg/ecco/cost_gencost_transp.F>` function can
 be used to compute a transport of volume, heat, or salt through a specified
-section (non quadratic cost function). To this end one sets ``gencost_name =
-‘transp*’``, where ``*`` is an optional suffix starting with ``‘_’``, and set
-:varlink:`gencost_barfile` to one of ``m_trVol``, ``m_trHeat``, and
-``m_trSalt``.
+section (non quadratic cost function). To this end one sets
+``gencost_name = ‘transp*’``, where ``*`` is an optional suffix starting
+with ``‘_’``, and set :varlink:`gencost_barfile` to one of ``m_trVol``,
+``m_trHeat``, and ``m_trSalt``.
 
 The :filelink:`cost_gencost_moc.F <pkg/ecco/cost_gencost_moc.F>` function is
 similar to transport function, but is intended to compute the meridional
@@ -610,7 +658,7 @@ PROFILES: model-data comparisons at observed locations
 
 Author: Gael Forget
 
-The purpose of pkg/profiles is to allow sampling of MITgcm runs
+The purpose of :filelink:`pkg/profiles <pkg/profiles>` is to allow sampling of MITgcm runs
 according to a chosen pathway (after a ship or a drifter, along
 altimeter tracks, etc.), typically leading to easy model-data
 comparisons. Given input files that contain positions and dates,
@@ -705,18 +753,337 @@ grid files. *This operation could eventually be inlined.*
     prof_Tweight:missing_value = -9999. ;
     }
 
+.. _sec:pkg:ObsFit:
+
+OBSFIT: grid-independent model-data comparisons 
+------------------------------------------------------
+
+Author: Ariane Verdy
+
+Introduction
+~~~~~~~~~~~~
+
+:filelink:`pkg/obsfit <pkg/obsfit>` is a versatile package used for grid-independent model-data comparisons
+including cost function calculations.
+
+Given an observational dataset, OBSFIT samples the model during the run at the time and location of observations,
+calculates the cost (sum of weighted misfits), and produces a model-equivalent output file that is directly
+comparable to an input file containing observational data.
+It is designed to accommodate datasets that are sparse, irregular, or non-local.
+OBSFIT works in "observations space", meaning that the model is interpolated to the observations locations, not the other way around. Hence observations do not have to be interpolated or constrained to a fixed set of depth levels, and model-data comparisons are independent of the model grid. 
+This increases the efficiency of data
+assimilation for many datasets and allows compatibility with multi-grid state estimation. OBSFIT offers the
+capability of assimilating high-resolution altimetry data (e.g., `SWOT <https://swot.jpl.nasa.gov>`_), 
+high-frequency radar (HRF), and spatially/temporally averaged data such as tomography or SST products.
+
+Description
+~~~~~~~~~~~
+
+The code is evolved from :filelink:`pkg/profiles <pkg/profiles>` and shares much of its general structure.
+In addition to relaxing pkg/profile's constraint on vertical levels, OBSFIT can handle:
+
+-  spatial averages of multiple sample locations;
+
+-  time averages (or a cumulative integral) of multiple sampled points;
+
+-  observations that are combinations of multiple variables.
+
+.. _obsfit_space: 
+
+Observations vs. Samples
+^^^^^^^^^^^^^^^^^^^^^^^^
+One feature of this package is that it allows measured observations to be averages in both space and/or time
+(or alternatively, integrated values in space and/or time via optional parameter choices, see :ref:`below <obsfit_time>`).
+Samples, defined as instantaneous model data values
+at specific locations (which may or may not coincide with model gridpoints), are aggregated and
+interpolated for comparison with observations. Hence, in OBSFIT, sampled points are referred to as *samples*, the averaged/integrated values as *model-equivalents*, and the measured values as *observations*. The cost function is evaluated from the misfit between *model-equivalents* and *observations*. 
+As an example, consider observations of integrated sound speed along the acoustic ray path:
+in such case, one specifies multiple locations at which to sample the model, as we require model
+data at multiple locations to calculate the model-equivalent of a single observation. 
+Sample locations are used during the model run to extract model data (and save it to file). Then, sampled
+values are combined at the end of the run to calculate the model-equivalent values to the observations.
+
+In many applications, *observations* are not spatially averaged or integrated; in that case, NP = 1 and *samples* and *observations* are effectively the same. A feature of the obsefit package, however, is that it allows each observation to be comprised of a number of samples (NP). Each of those NP samples is assigned a relative
+weight in the average/integral; by default all samples are weighed equally. (Note that the our definition of weights is
+different from the uncertainty-related weights in :filelink:`pkg/profiles`.)  
+
+.. _obsfit_type: 
+
+Sample types
+^^^^^^^^^^^^
+
+Each OBSFIT sample is assigned a type corresponding to the model variable that will be sampled.
+There are currently five types of variables implemented in the code: potential temperature, salinity,
+zonal velocity, meridional velocity, and sea surface height. Other variables can be added in 
+``obsfit_sampling.F``. Observations can be made of samples
+of different types; for example, one could compute the along-shore current speed (a combination of
+zonal and meridional velocities) or the water spiciness (a combination of temperature and salinity). 
+
+
+For sea surface height (SSH) observations, OBSFIT samples the model variable :varlink:`etaN`. Inputs should thus
+be the total dynamic height (SSH relative to the geoid), not SSH anomalies. Because of arbitrary reference 
+values for the dynamic topography, the mean offset between modeled and observed SSH is removed when the cost is calculated, for each dataset (i.e., each obsfit input file). 
+
+.. _obsfit_time: 
+
+Observation duration
+^^^^^^^^^^^^^^^^^^^^
+
+Each OBSFIT observation is assigned a start time and a duration.
+Observations with a specified positive duration are averaged in time, whereas a negative duration
+is used to indicate time integration, and instantaneous observations have duration=0
+(if no duration is provided, duration=0 is assumed). During each
+model time step which falls within the specified observation window, the model is sampled 
+at each specified sample location.
+In other words, all samples inherit the time and duration from the corresponding observation.
+If observation time does not align exactly with model time steps, samples are taken from model data
+at the beginning of the time step in which the observation time falls (time interpolation is not 
+necessary as long as the model time step is relatively small).
+Sampled values are saved in tiled files. For non-zero specified duration, accumulated values
+are saved in the tiled files and the average is calculated at the end of the model run.
+
+
+Interpolation
+^^^^^^^^^^^^^
+
+Sampling is done by interpolating model values from grid points surrounding the
+sample location (up to 8 surrounding grid points are used). For a cartesian or spherical polar grid,
+interpolation factors (not to be confused with weights!) are calculated from the input longitude, latitude, and depth.
+For a curvilinear grid (LLC, etc), interpolation factors are computed offline and included in the input file (see below). 
+
+Cost Functions
+^^^^^^^^^^^^^^
+
+
+OBSFIT configuration and compiling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+OBSFIT can be turned on or off at compile time
+(see :numref:`building_code`)
+
+- using the ``packages.conf`` file by adding ``obsfit`` to it
+
+- or using :filelink:`genmake2 <tools/genmake2>` adding ``-enable=obsfit`` or
+  ``-disable=obsfit`` switches
+
+- *required packages and CPP options*: :filelink:`pkg/cal` must be enabled to use OBSFIT. No other packages or CPP options are required.
+
+If needed, edit :filelink:`OBSFIT_SIZE.h <pkg/obsfit/OBSFIT_SIZE.h>` to change the maximum number of input files,
+total number of observations, number of samples per tile, or number of samples per observation. For maximum efficiency,
+set those to the smallest values possible for your input datasets. 
+
+Run-time requirements
+~~~~~~~~~~~~~~~~~~~~~
+
+Pre-processing: How to make OBSFIT input files
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Users must provide at least one OBSFIT input file, in netCDF format, with observed values and sampling locations.
+Typically, different datasets will be processed as separate files. In OBSFIT input files, all fields will be
+vectors -- with the exception of position and integration factors for the generic grid case.
+
+They must include the following fields:
+
+- obs_val (observed value)
+
+- obs_uncert (uncertainty on the observed value)
+
+- obs_YYYYMMDD (observation start time [year,month,day])
+
+- obs_HHMMSS (observation start time [hour,min,sec])
+
+- sample_type (variable type, [integer; see table below])
+
+- sample_lon (longitude)
+
+- sample_lat (latitude)
+
+- sample_depth (depth)
+
+  
+The following fields are optional:
+
+- obs_delt (observation duration [default=0; negative for time integration])
+
+- obs_np (number of samples in the observation [default=1])
+
+- sample_weight (weighting factor [default=1/obs_np])
+
+
+If the grid is not longitude/latitude, i.e. for a generic grid case, additional fields are needed:
+
+- sample_point
+
+- sample_interp_XC11
+
+- sample_interp_YC11
+
+- sample_interp_XCNINJ
+
+- sample_interp_YCNINJ
+
+- sample_interp_i
+
+- sample_interp_j
+
+- sample_interp_k
+
+- sample_interp_frac
+
+
+
+See make_obsfit_example.m for a simple matlab example with a longitude-latitude grid. 
+A python toolbox, ObsPrep, for formatting ungridded datasets into objects readable by pkg/obsfit using xarray 
+is under development: https://github.com/ECCO-Hackweek/EH24-processors-llc/tree/main?tab=readme-ov-file. The application computes the required *sample_interp* fields.
+
+In the simplest case, the number of samples per observation is 1; then obs_np = 1 (by default), sample_weight = 1 (by default), and sample_{type/lon/lat/depth} give the variable type/longitude/latitude/depth of the observation. If there are {N} observations, each field listed above is a vector of size {1xN}.
+
+If observations are spatial averages or integrals, one must specify the number of samples that make each observation, as well as their relative weight. If there are {N} observations, obs* fields are vectors of size {1xN} and sample* fields are vectors of size :math:`\sum_N` (obs_np). Note that the number of samples can be different for each observation.
+
+The observation start time is given in two separate fields, obs_YYYYMMDD and obs_HHMMSS. They are numeric values with 8 and 6 digits, respectively. The first 4 digits of obs_YYYYMMDD correspond to the year, the next 2 to the month, and the last 2 to the day; a similar notation is used for obs_HHMMSS.
+
+
+Sample types currently supported:
+
+==============          ======
+Variable                Type
+==============          ======
+:math:`\theta`          1 
+:math:`S`               2
+:math:`u`               3
+:math:`v`               4
+SSH                     5
+==============          ======
+
+
+Enabling the package
+^^^^^^^^^^^^^^^^^^^^
+
+:filelink:`/pkg/obsfit` package is switched on/off at run-time by
+setting :varlink:`useOBSFIT` ``= .TRUE.,`` in ``data.pkg``.
+
+General flags and parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:numref:`tab_phys_pkg_obsfit_runtimeparms` lists run-time parameters.
+
+.. tabularcolumns:: |\Y{.275}|\Y{.20}|\Y{.525}|
+
+.. table:: Run-time parameters and default values
+  :class: longtable
+  :name: tab_phys_pkg_obsfit_runtimeparms
+
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  |   Name                             |      Default value           |   Description                                                           |
+  +====================================+==============================+=========================================================================+
+  | :varlink:`obsfitDir`               |     ' '                      | subdirectory name containing OBSFIT data files                          |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`obsfitFiles`             |     ' '                      | OBSFIT data filenames (``.nc`` automatically appended)                  |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`mult_obsfit`             |     1.0                      | multiplier factor for observation in total cost function calculation    |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`obsfit_facmod`           |     1.0                      |                                                                         |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`obsfitDoNcOutput`        |     FALSE                    | boolean to generate tiled output file in netCDF format                  |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+
+
+File ``data.obsfit`` must be present in the run folder. Here is an example:
+
+::
+
+    # *********************
+    # OBSFIT cost function
+    # *********************
+    &OBSFIT_NML
+    obsfitDir      = 'OBSFIT',
+    obsfitFiles(1) = 'swot_L3',
+    mult_obsfit(1) = 1.0,
+    obsfitFiles(2) = 'moorings',
+    mult_obsfit(2) = 0.0,
+    &
+
+
+In this example there are two input files: swot_L3.nc and moorings.nc
+(note that the suffix .nc should not be included in data.obsfit). They have multiplier factors that will
+multiply their respective cost in the total cost calculation. For example, the first dataset
+will be counted with a factor=1, and the second dataset will not influence the total cost 
+since its multiplier is 0. Output files will be written in a folder called "OBSFIT" that
+will be created if it doesn't already exist. 
+
+
+``Example: swot_L3.nc``
+
+::
+
+    netcdf swot_L3.nc {
+    dimensions:
+    iOBS = 1575 ;
+    iSAMPLE = 1575;
+    variables:
+    double obs_val(iOBS) ;
+    double obs_uncert(iOBS) ;
+    double obs_YYYYMMDD(iOBS) ;
+    obs_YYYYMMDD:missing_value = -9999. ;
+    obs_YYYYMMDD:long_name = "year (4 digits), month (2 digits), day (2 digits)" ;
+    double obs_HHMMSS(iOBS) ;
+    obs_HHMMSS:missing_value = -9999. ;
+    obs_HHMMSS:long_name = "hour (2 digits), minute (2 digits), second (2 digits)" ;
+    double sample_lon(iSAMPLE) ;
+    sample_lon:units = "(degree E)" ;
+    sample_lon:missing_value = -9999. ;
+    double sample_lat(iSAMPLE) ;
+    sample_lat:units = "(degree N)" ;
+    sample_lat:missing_value = -9999. ;
+    double sample_depth(iSAMPLE) ;
+    sample_depth:units = "(meters)" ;
+    sample_depth:missing_value = -9999. ;
+    double sample_type(iSAMPLE) ;
+    sample_type:missing_value = -9999. ;
+    sample_type:long_name = "1=T, 2=S, 3=u, 4=v, 5=SSH" ;
+    }
+
+Post-processing
+^^^^^^^^^^^^^^^
+
+For each input file, two new files are created. One, named <original_filename>.equi.nc,
+contains model-equivalent values for direct comparison with observation data.
+The other, named <original_filename>.misfits.nc, contains model-observations misfits.
+"equi.nc" output files include two variables, mod_val and mod_mask. They are in the same format as the input files,
+thus obs_val and mod_val are directly comparable. The mask indicates missing model-equivalent values.
+
+A simple way to plot the observed values and model-equivalent values in matlab could be:
+
+::
+
+    load swot_L3.nc
+    figure; scatter(sample_lon, sample_lat, 30, obs_val);
+    load swot_L3.equi.nc
+    figure; scatter(sample_lon, sample_lat, 30, mod_val);
+
+Experiments and tutorials that use OBSFIT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/verification/global_oce_biogeo_bling/
+
+
 .. _sec:pkg:ctrl:
 
 CTRL: Model Parameter Adjustment Capability
 -------------------------------------------
 
-Author: Gael Forget
+Author: Gael Forget, An T. Nguyen, Martin Losch
+
+.. _gen_ctrl:
+
+Generic Control Parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Package :filelink:`ctrl <pkg/ctrl>` provides an interface to defining the
 control variables for an optimization. After defining CPP-flags
 :varlink:`ALLOW_GENTIM2D_CONTROL`, :varlink:`ALLOW_GENARR2D_CONTROL`,
 :varlink:`ALLOW_GENARR3D_CONTROL` in :filelink:`CTRL_OPTIONS.h
-<pkg/ctrl/CTRL_OPTIONS.h`, the parameters available for configuring generic
+<pkg/ctrl/CTRL_OPTIONS.h>`, the parameters available for configuring generic
 cost terms in ``data.ctrl`` are given in :numref:`gencost_ctrl_params`.  The
 control variables are stored as fields on the model grid in files
 ``$ctrlvar.$iternumber.data/meta``, and corresponding gradients in
@@ -729,8 +1096,12 @@ the resulting new control vector to the model grid unless CPP-flag
 :varlink:`EXCLUDE_CTRL_PACK` is defined in :filelink:`CTRL_OPTIONS.h
 <pkg/ctrl/CTRL_OPTIONS.h>`.
 
+.. _gen_ctrl_param:
 
-.. table:: Parameters in ``ctrl_nml_genarr`` namelist in ``data.ctrl``.  The
+Run-time Parameters
+^^^^^^^^^^^^^^^^^^^
+
+.. table:: Parameters in namelist group :varlink:`ctrl_nml_genarr` in ``data.ctrl``.  The
            ``*`` can be replaced by ``arr2d``, ``arr3d``, or ``tim2d`` for
            time-invariant two and three dimensional controls and time-varying
            2D controls, respectively. Parameters for ``genarr2d``,
@@ -740,62 +1111,44 @@ the resulting new control vector to the model grid unless CPP-flag
            the cost function.
   :name: gencost_ctrl_params
 
-  +-----------------------+-----------------------+--------------------------------+
-  | parameter             | type                  | function                       |
-  +=======================+=======================+================================+
-  | ``xx_gen*_file``      | character(*)          | Control Name: prefix from      |
-  |                       |                       | :numref:`gencost_ctrl_files`   |
-  |                       |                       | + suffix.                      |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gen*_weight``    | character(*)          | Weights in the form            |
-  |                       |                       | of                             |
-  |                       |                       | :math:`\sigma_{\vec{u          |
-  |                       |                       | }_j}^{-2}`                     |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gen*_bounds``    | real(5)               | Apply bounds                   |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gen*_preproc``   | character(*)          | Control                        |
-  |                       |                       | preprocessor(s) (see           |
-  |                       |                       | :numref:`gencost_ctrl_preproc` |
-  |                       |                       | )                              |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gen*_preproc_c`` | character(*)          | Preprocessor                   |
-  |                       |                       | character arguments (see       |
-  |                       |                       | :numref:`genarr_preproc_c`)    |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gen*_preproc_i`` | integer(*)            | Preprocessor integer           |
-  |                       |                       | arguments                      |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gen*_preproc_r`` | real(*)               | Preprocessor real              |
-  |                       |                       | arguments                      |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``gen*Precond``       | real                  | Preconditioning                |
-  |                       |                       | factor (:math:`=1` by          |
-  |                       |                       | default)                       |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``mult_gen*``         | real                  | Cost function                  |
-  |                       |                       | multiplier                     |
-  |                       |                       | :math:`\beta_j`                |
-  |                       |                       | (:math:`= 1` by                |
-  |                       |                       | default)                       |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gentim2d_period``| real                  | Frequency of                   |
-  |                       |                       | adjustments (in                |
-  |                       |                       | seconds)                       |
-  +-----------------------+-----------------------+--------------------------------+
-  |``xx_gentim2d_startda``| integer               | Adjustment start date          |
-  |``te1``                |                       |                                |
-  +-----------------------+-----------------------+--------------------------------+
-  |``xx_gentim2d_startda``| integer               | Default: model start           |
-  |``te2``                |                       | date                           |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gentim2d_cumsum``| logical               | Accumulate control             |
-  |                       |                       | adjustments                    |
-  +-----------------------+-----------------------+--------------------------------+
-  | ``xx_gentim2d_glosum``| logical               | Global sum of                  |
-  |                       |                       | adjustment (output is          |
-  |                       |                       | still 2D)                      |
-  +-----------------------+-----------------------+--------------------------------+
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  |   Name                             |      Default value           |   Description                                                           |
+  +====================================+==============================+=========================================================================+
+  | ``xx_gen*_file``                   |    :kbd:`' '`                | control fllename: prefix from :numref:`gencost_ctrl_files` + suffix     |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``xx_gen*_weight``                 |    :kbd:`' '`                | filename for weights in the form of :math:`\sigma_{\vec{u}_j}^{-2}`     |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``xx_gen*_bounds``                 |    0.0, 0.0, 0.0, 0.0, 0.0   | apply bounds                                                            |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``xx_gen*_preproc``                |    :kbd:`' '`                | control preprocessor (see :numref:`gencost_ctrl_preproc`)               |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``xx_gen*_preproc_c``              |    :kbd:`' '`                | preprocessor character arguments (see :numref:`genarr_preproc_c`)       |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``xx_gen*_preproc_i``              |    0                         | preprocessor integer arguments                                          |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``xx_gen*_preproc_r``              |    0.0                       | preprocessor real arguments                                             |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``gen*Precond``                    |    1.0                       | preconditioning factor                                                  |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | ``mult_gen*``                      |    1.0                       | cost function multiplier :math:`\beta_j`                                |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`xx_gentim2d_period`      |    0.0                       | frequency of adjustments (s)                                            |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`xx_gentim2d_startdate1`  |  :varlink:`startdate_1`      | adjustment start date 1 yyyymmdd (default from :filelink:`pkg/cal`;     |
+  |                                    |                              | see :numref:`sub_phys_pkg_cal`)                                         |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`xx_gentim2d_startdate2`  |  :varlink:`startdate_2`      | adjustment start date 2 hhmmss (default from :filelink:`pkg/cal`;       |
+  |                                    |                              | see :numref:`sub_phys_pkg_cal`)                                         |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`xx_gentim2d_cumsum`      |   FALSE                      | accumulate control adjustments                                          |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+  | :varlink:`xx_gentim2d_glosum`      |   FALSE                      | global sum of adjustment (note: output is still 2D)                     |
+  +------------------------------------+------------------------------+-------------------------------------------------------------------------+
+
+.. _gen_ctrl_fields:
+
+Generic Control Fields
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. table:: Generic control prefixes implemented as of checkpoint 67x.
   :name: gencost_ctrl_files
@@ -812,20 +1165,34 @@ the resulting new control vector to the model grid unless CPP-flag
   +--------------------+-----------------------+--------------------------------+
   |                    | ``xx_geothermal``     | geothermal heat flux           |
   +--------------------+-----------------------+--------------------------------+
-  |                    | ``xx_shicoefft``      | shelfice thermal transfer      |
+  |                    | ``xx_shicoefft``      | package :ref:`shelfice         |
+  |                    |                       | <sub_phys_pkg_shelfice>`       |
+  |                    |                       | thermal transfer coefficient   |
+  |                    |                       | (see :numref:`shi_ctrl`)       |
+  +--------------------+-----------------------+--------------------------------+
+  |                    | ``xx_shicoeffs``      | package :ref:`shelfice         |
+  |                    |                       | <sub_phys_pkg_shelfice>`       |
+  |                    |                       | salinity transfer              |
   |                    |                       | coefficient                    |
   |                    |                       | (see :numref:`shi_ctrl`)       |
   +--------------------+-----------------------+--------------------------------+
-  |                    | ``xx_shicoeffs``      | shelfice salinity transfer     |
-  |                    |                       | coefficient                    |
+  |                    | ``xx_shicdrag``       | package :ref:`shelfice         |
+  |                    |                       | <sub_phys_pkg_shelfice>`       |
+  |                    |                       | drag coefficient               |
   |                    |                       | (see :numref:`shi_ctrl`)       |
   +--------------------+-----------------------+--------------------------------+
-  |                    | ``xx_shicdrag``       | shelfice drag coefficient      |
-  |                    |                       | (see :numref:`shi_ctrl`)       |
-  +--------------------+-----------------------+--------------------------------+
-  |                    | ``xx_depth``          | bottom topography              |
-  |                    |                       | requires to define             |
+  |                    | ``xx_depth``          | bottom topography;             |
+  |                    |                       | requires #define               |
   |                    |                       | :varlink:`ALLOW_DEPTH_CONTROL` |
+  +--------------------+-----------------------+--------------------------------+
+  |                    | ``xx_siheff``         | package :ref:`seaice           |
+  |                    |                       | <sub_phys_pkg_seaice>`         |
+  |                    |                       | initial sea ice thickness      |
+  +--------------------+-----------------------+--------------------------------+
+  |                    | ``xx_siarea``         | package :ref:`seaice           |
+  |                    |                       | <sub_phys_pkg_seaice>`         |
+  |                    |                       | initial sea ice area           |
+  +--------------------+-----------------------+--------------------------------+
   +--------------------+-----------------------+--------------------------------+
   | 3D, time-invariant | ``genarr3d``          |                                |
   | controls           |                       |                                |
@@ -838,11 +1205,18 @@ the resulting new control vector to the model grid unless CPP-flag
   +--------------------+-----------------------+--------------------------------+
   |                    | ``xx_vvel``           | initial meridional velocity    |
   +--------------------+-----------------------+--------------------------------+
-  |                    | ``xx_kapgm``          | GM coefficient                 |
+  |                    | ``xx_kapgm``          | package :ref:`gmredi           |
+  |                    |                       | <sub_phys_pkg_gmredi>`         |
+  |                    |                       | GM thickness diffusivity       |
+  |                    |                       | (see :numref:`GM_bolus_desc`)  |
   +--------------------+-----------------------+--------------------------------+
-  |                    | ``xx_kapredi``        | isopycnal diffusivity          |
+  |                    | ``xx_kapredi``        | package :ref:`gmredi           |
+  |                    |                       | <sub_phys_pkg_gmredi>`         |
+  |                    |                       | isopycnal ("Redi") diffusivity |
+  |                    |                       | (see :numref:`GM_redi_desc`)   |
   +--------------------+-----------------------+--------------------------------+
   |                    | ``xx_diffkr``         | diapycnal diffusivity          |
+  +--------------------+-----------------------+--------------------------------+
   +--------------------+-----------------------+--------------------------------+
   | 2D, time-varying   | ``gentim2D``          |                                |
   | controls           |                       |                                |
@@ -868,7 +1242,7 @@ the resulting new control vector to the model grid unless CPP-flag
   |                    | ``xx_tauv``           | meridional wind stres          |
   +--------------------+-----------------------+--------------------------------+
   |                    | ``xx_gen_precip``     | globally averaged              |
-  |                    |                       | precipitation?                 |
+  |                    |                       | precipitation                  |
   +--------------------+-----------------------+--------------------------------+
   |                    | ``xx_hflux``          | net heat flux                  |
   +--------------------+-----------------------+--------------------------------+
@@ -876,6 +1250,11 @@ the resulting new control vector to the model grid unless CPP-flag
   +--------------------+-----------------------+--------------------------------+
   |                    | ``xx_shifwflx``       | shelfice melt rate             |
   +--------------------+-----------------------+--------------------------------+
+
+.. _gen_ctrl_proc:
+
+Generic Control Processing Options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. table:: ``xx_gen????d_preproc`` options implemented as of checkpoint
            67x. Notes: :math:`^a`: If ``noscaling`` is false, the control
@@ -887,32 +1266,32 @@ the resulting new control vector to the model grid unless CPP-flag
   +-----------------------+-----------------------+-----------------------+
   | name                  | description           | arguments             |
   +=======================+=======================+=======================+
-  | ``WC01``              | Correlation modeling  | integer: operator     |
+  | ``WC01``              | correlation modeling  | integer: operator     |
   |                       |                       | type (default: 1)     |
   +-----------------------+-----------------------+-----------------------+
-  | ``smooth``            | Smoothing without     | integer: operator     |
+  | ``smooth``            | smoothing without     | integer: operator     |
   |                       | normalization         | type (default: 1)     |
   +-----------------------+-----------------------+-----------------------+
-  | ``docycle``           | Average period        | integer: cycle length |
+  | ``docycle``           | average period        | integer: cycle length |
   |                       | replication           |                       |
   +-----------------------+-----------------------+-----------------------+
-  | ``replicate``         | Alias for ``docycle`` |(units of              |
+  | ``replicate``         | alias for ``docycle`` |(units of              |
   |                       |                       |``xx_gentim2d_period``)|
   +-----------------------+-----------------------+-----------------------+
-  | ``rmcycle``           | Periodic average      | integer: cycle length |
+  | ``rmcycle``           | periodic average      | integer: cycle length |
   |                       | subtraction           |                       |
   +-----------------------+-----------------------+-----------------------+
-  | ``variaweight``       | Use time-varying      | —                     |
+  | ``variaweight``       | use time-varying      | —                     |
   |                       | weight                |                       |
   +-----------------------+-----------------------+-----------------------+
-  | ``noscaling``         | Do not scale with     | —                     |
+  | ``noscaling``         | do not scale with     | —                     |
   | :math:`^{a}`          | ``xx_gen*_weight``    |                       |
   +-----------------------+-----------------------+-----------------------+
-  | ``documul``           | Sets                  | —                     |
+  | ``documul``           | sets                  | —                     |
   |                       | ``xx_gentim2d_cumsum``|                       |
   |                       |                       |                       |
   +-----------------------+-----------------------+-----------------------+
-  | ``doglomean``         | Sets                  | —                     |
+  | ``doglomean``         | sets                  | —                     |
   |                       | ``xx_gentim2d_glosum``|                       |
   |                       |                       |                       |
   +-----------------------+-----------------------+-----------------------+
@@ -926,7 +1305,7 @@ the resulting new control vector to the model grid unless CPP-flag
   | name                  | description           | arguments             |
   +=======================+=======================+=======================+
   |``log10ctrl``          | Control adjustments to| See                   |
-  |                       | base 10 logarithm of  | :numref:`log_ctrl`    |
+  |                       | log10 of              | :numref:`log_ctrl`    |
   |                       | 2D or 3D array        |                       |
   |                       | (not available for    |                       |
   |                       | ``xx_gentim2d``).     |                       |
@@ -941,16 +1320,28 @@ through multiplication by the respective uncertainty fields
 :math:`\mathcal{Q}` in :eq:`Upreproc`. Besides the
 scaling of :math:`\vec{u}_j` to physical units, the preprocessor
 :math:`\mathcal{Q}` can include, for example, spatial correlation
-modeling (using an implementation of Weaver and Coutier, 2001) by
+modeling (using an implementation of Weaver and Coutier, 2001
+:cite:`weaver:01`) by
 setting ``xx_gen*_preproc = ’WC01’``. Alternatively, setting
 ``xx_gen*_preproc = ’smooth’`` activates the smoothing part of ``WC01``,
 but omits the normalization. Additionally, bounds for the controls can
 be specified by setting ``xx_gen*_bounds``. In forward mode, adjustments
 to the :math:`i^\text{th}` control are clipped so that they remain
-between ``xx_gen*_bounds(i,1)`` and ``xx_gen*_bounds(i,4)``. If
-``xx_gen*_bounds(i,1)`` :math:`<` ``xx_gen*_bounds(i+1,1)`` for
-:math:`i = 1, 2, 3`, then the bounds will “emulate a local
-minimum;” otherwise, the bounds have no effect in adjoint mode.
+between ``xx_gen*_bounds(i,1)`` and ``xx_gen*_bounds(i,4)``. The bounds
+have no effect in adjoint mode unless ``xx_gen*_bounds(i,j)`` <
+``xx_gen*_bounds(i,j+1)`` for :math:`j = 1, 3`. When this is the case,
+the bounds will “emulate a local minimum” as follows in
+:filelink:`pkg/ctrl/adctrl_bound.F`. On the minimum end,
+when ``xx_gen*(i)`` < ``xx_gen*_bounds(i,2)`` and the gradient
+``adxx_gen*(i)`` > 0.0, i.e., the derivative suggests that a
+further decrease of ``xx_gen*(i)`` will decrease the cost, an adjustment
+is enforced to reverse the sign of the gradient ``adxx_gen*(i)`` to be
+negative such that any further decrease in ``xx_gen*(i)`` toward its minimum
+bound ``xx_gen*_bounds(i,1)`` will be penalized.  The opposite is enforced
+at the maximum end when ``xx_gen*(i)`` > ``xx_gen*_bounds(i,3)``
+and ``adxx_gen*(i)`` < 0.0 such that the sign of the gradient
+``adxx_gen*(i)`` will be reversed to positive to penalize any further
+increase in ``xx_gen*(i)`` toward its maximum bound ``xx_gen*_bounds(i,4)``.
 
 For the case of time-varying controls, the frequency is specified by
 :varlink:`xx_gentim2d_period`. The generic control package interprets special
@@ -973,6 +1364,170 @@ Note that control parameters exist for each individual near surface atmospheric
 state variable, as well as the net heat and salt (EmPmR) fluxes.  The user must
 be mindful of control parameter combinations that make sense according to their
 specific setup, e.g., with the :ref:`EXF package <ssub_phys_pkg_exf_config>`.
+
+.. _gen_ctrl_rec:
+
+Generic Control Record Access
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+For each control variable ``$ctrlvar``, three pairs of ``.data`` files (and their
+corresponding ``.meta``) are required or produced per adjoint run:
+
+::
+
+   1a   $ctrlvar.effective.$iternumber.data
+   1b ad$ctrlvar.effective.$iternumber.data
+
+   2a   $ctrlvar.tmp.$iternumber.data
+   2b ad$ctrlvar.tmp.$iternumber.data
+
+   3a   $ctrlvar.$iternumber.data
+   3b ad$ctrlvar.$iternumber.data
+
+Pair 1a,b are the physical fields with physical units. Pair 2a,b are temporary
+files storing a repeat cycle for use during calculations when
+:varlink:`docycle` and :varlink:`rmcycle` are active. Pair 3a,b have units or
+no units depending on the setting of :varlink:`noscaling`, which controls
+scaling/unscaling by the corresponding ``xx_gen*_weight`` (see
+:numref:`gencost_ctrl_preproc`).
+
+In an adjoint run with the 2-D time-dependent controls (CPP-flag
+:varlink:`ALLOW_GENTIM2D_CONTROL` defined), three variables
+:varlink:`startrec`, :varlink:`endrec`, and :varlink:`diffrec` =
+:varlink:`endrec` - :varlink:`startrec` + 1 will be
+initialized as a function of the startdate (:varlink:`startdate_1`,
+:varlink:`startdate_2`) in ``data.cal``, the control variables startdates
+(:varlink:`xx_gentim2d_startdate1`, :varlink:`xx_gentim2d_startdate2`) in
+``data.ctrl``, and the pickup time :varlink:`nIter0` in
+:filelink:`packages_init_fixed.F <model/src/packages_init_fixed.F>` (which
+calls :filelink:`ctrl_init.F <pkg/ctrl/ctrl_init.F>`,
+:filelink:`ctrl_init_rec.F <pkg/ctrl/ctrl_init_rec.F>`). These three variables
+are subsequently used to determine the record length of the three pairs (1--3)
+of the above files, in the order as follows:
+
+- First the ``ad$ctrlvar.[effective,tmp,].$iternumber`` files (1b,2b,3b) above
+  are initialized with zeros in
+  :filelink:`packages_init_fixed.F <model/src/packages_init_fixed.F>`-->
+  :filelink:`ctrl_init.F <pkg/ctrl/ctrl_init.F>`-->
+  :filelink:`ctrl_init_ctrlvar.F <pkg/ctrl/ctrl_init_ctrlvar.F>`
+  (with :varlink:`yadprefix` = ``'ad'``); 1b and 2b have size :varlink:`diffrec`
+  and 3b has size :varlink:`endrec`.
+
+.. parsed-literal ::
+
+  Flow of :filelink:`pkg/ctrl` when the adjoint is running (below, for $iternumber=0000000001):
+
+  Note: :filelink:`the_model_main.F <model/src/the_model_main.F>` calls :filelink:`the_main_loop.F <model/src/the_main_loop.F>`, but once the code is generated from TAF,
+  the preprocessed form the_model_main.f calls either mdthe_main_loop or adthe_main_loop
+
+  :filelink:`the_model_main <model/src/the_model_main.F>`
+  \|-:filelink:`initialise_fixed <model/src/initialise_fixed.F>`
+    \|-:filelink:`ini_parms <model/src/ini_parms.F>`
+    \|-:filelink:`packages_boot <model/src/packages_boot.F>`, :filelink:`packages_readparms <model/src/packages_readparms.F>`
+    \|-:filelink:`set_parms <model/src/set_parms.F>`, :filelink:`ini_model_io <model/src/ini_model_io.F>`, :filelink:`ini_grid <model/src/ini_grid.F>`, :filelink:`load_ref_files <model/src/load_ref_files.F>`, :filelink:`ini_eos <model/src/ini_eos.F>`, :filelink:`set_ref_state <model/src/set_ref_state.F>`,
+      :filelink:`set_grid_factors <model/src/set_grid_factors.F>`, :filelink:`ini_depths <model/src/ini_depths.F>`, :filelink:`ini_masks_etc <model/src/ini_masks_etc.F>`
+
+    \|-:filelink:`packages_init_fixed <model/src/packages_init_fixed.F>`
+      \|-:filelink:`cal_init_fixed <pkg/cal/cal_init_fixed.F>`, :filelink:`diagnostics_init_early <pkg/diagnostics/diagnostics_init_early.F>`, :filelink:`diagnostics_main_init <pkg/diagnostics/diagnostics_main_init.F>`, :filelink:`gad_init_fixed <pkg/generic_advdiff/gad_init_fixed.F>`,
+        :filelink:`mom_init_fixed <pkg/mom_common/mom_init_fixed.F>`, :filelink:`obcs_init_fixed <pkg/obcs/obcs_init_fixed.F>`, :filelink:`exf_init_fixed <pkg/exf/exf_init_fixed.F>`, :filelink:`kpp_init_fixed <pkg/kpp/kpp_init_fixed.F>`, :filelink:`gmredi_init_fixed <pkg/gmredi/gmredi_init_fixed.F>`,
+        :filelink:`seaice_cost_init_fixed <pkg/seaice/seaice_cost_init_fixed.F>`, :filelink:`smooth_init_fixed <pkg/smooth/smooth_init_fixed.F>`, :filelink:`ecco_cost_init_fixed <pkg/ecco/ecco_cost_init_fixed.F>`,
+        :filelink:`profiles_init_fixed <pkg/profiles/profiles_init_fixed.F>`, :filelink:`seaice_init_fixed <pkg/seaice/seaice_init_fixed.F>`, :filelink:`salt_plume_init_fixed <pkg/salt_plume/salt_plume_init_fixed.F>`
+
+      \|-:filelink:`ctrl_init <pkg/ctrl/ctrl_init.F>`
+        \|-:filelink:`active_write_xyz <pkg/autodiff/active_file.F>`\ ('wunit')
+        \|-:filelink:`ctrl_init_ctrlvar <pkg/ctrl/ctrl_init_ctrlvar.F>`\ (genarr2d, genarr3d)
+
+        \|-:filelink:`ctrl_init_rec <pkg/ctrl/ctrl_init_rec.F>`\ (gentim2d_startdate, diffrec, startrec, endrec)
+        \|-:filelink:`ctrl_init_ctrlvar <pkg/ctrl/ctrl_init_ctrlvar.F>`\ (xx_atemp.effective.0000000001, 'c','xy')
+          \|-:filelink:`ctrl_set_fname <pkg/ctrl/ctrl_set_fname.F>`\ (xx_fname,fname)
+                            **--> fname(1:3)=[,ad,hn]xx_atemp.effective.0000000001**
+          \|-:filelink:`ctrl_set_globfld_xy <pkg/ctrl/ctrl_set_globfld_xy.F>`\ (fname(2)) (with yadprefix='ad')
+            \|-:filelink:`mds_write_field <pkg/mdsio/mdsio_write_field.F>`\ (adxx_atemp.effective.0000000001)  **<- size diffrec**
+        \|-:filelink:`ctrl_init_ctrlvar <pkg/ctrl/ctrl_init_ctrlvar.F>`\ (xx_atemp.tmp.0000000001)
+          \|-:filelink:`ctrl_set_fname <pkg/ctrl/ctrl_set_fname.F>`\(xx_fname,fname)
+                            **--> fname(1:3)=[,ad,hn]xx_atemp.tmp.0000000001**
+          \|-:filelink:`ctrl_set_globfld_xy <pkg/ctrl/ctrl_set_globfld_xy.F>`\ (fname(2)) (with yadprefix='ad')
+            \|-:filelink:`mds_write_field <pkg/mdsio/mdsio_write_field.F>`\ (adxx_atemp.tmp.0000000001)        **<- size diffrec**
+        \|-:filelink:`ctrl_init_ctrlvar <pkg/ctrl/ctrl_init_ctrlvar.F>`\ (xx_atemp.0000000001)
+          \|-:filelink:`ctrl_set_fname <pkg/ctrl/ctrl_set_fname.F>`\(xx_fname,fname)
+                            **--> fname(1:3)=[,ad,hn]xx_atemp.0000000001**
+          \|-:filelink:`ctrl_set_globfld_xy <pkg/ctrl/ctrl_set_globfld_xy.F>`\ (fname(2)) (with yadprefix='ad')
+            \|-:filelink:`mds_write_field <pkg/mdsio/mdsio_write_field.F>`\ (adxx_atemp.0000000001)            **<- size endrec**
+
+- Second, within ``initiase_variamd.f`` (see below), records
+  :varlink:`startrec` to :varlink:`endrec` of file 3a
+  ``$ctrvar.$iternumber.data`` are read in :filelink:`ctrl_map_ini_gentim2d.F
+  <pkg/ctrl/ctrl_map_ini_gentim2d.F>`, processed if scaling or smoothing, etc.,
+  need to be applied, and then written to (1a,2a)
+  ``$ctrlvar.{effective,tmp}.data`` of size :varlink:`diffrec`.  Note these
+  routines contain a ``md`` or ``ad`` suffix and are produced by TAF, e.g.,
+  ``s/r ctrl_map_ini_gentim2dmd`` (found in TAF-generated file
+  ``ctrl_map_ini_gentim2d_ad.f``) called from ``s/r initialize_variamd`` (found
+  in TAF-generated file ``initialize_varia_ad.f``), which in turn is called
+  from ``s/r adthe_main_loop`` (found in TAF-generated file
+  ``the_main_loop_ad.f``); alternatively, all of these routines are found the
+  concatenated file ``ad_taf_output.f``.
+
+.. parsed-literal ::
+
+  \|-adthe_main_loop  **only available in the_main_loop_ad.f, called from the_model_main.f**
+    \|-adopen (many tapes, ocean variables, atmos, obcs, etc)  **initialize tapelev grid, etc.**
+
+    \|-initialise_variamd
+      \|-packages_init_variablesmd
+        \|-:filelink:`diagnostics_init_varia <pkg/diagnostics/diagnostics_init_varia.F>`, :filelink:`kpp_init_varia <pkg/kpp/kpp_init_varia.F>`, :filelink:`exf_init_varia <pkg/exf/exf_init_varia.F>`  **store salt,theta**
+        \|-:filelink:`profiles_init_varia <pkg/profiles/profiles_init_varia.F>`, :filelink:`ecco_init_varia <pkg/ecco/ecco_init_varia.F>`, :filelink:`obcs_init_variables <pkg/obcs/obcs_init_variables.F>`  **some done after ctrl**
+        \|-ctrl_init_variablesmd
+          \|-:filelink:`ctrl_map_ini_genarr <pkg/ctrl/ctrl_map_ini_genarr.F>`
+            \|-:filelink:`ctrl_map_genarr2d <pkg/ctrl/ctrl_map_genarr.F>`  **e.g., set etan,siheff ctrl**
+            \|-:filelink:`ctrl_map_genarr3d <pkg/ctrl/ctrl_map_genarr.F>`  **e.g., set logdiffkr ctrl**
+          \|-ctrl_map_ini_gentim2dmd
+            \|-:filelink:`ctrl_init_rec <pkg/ctrl/ctrl_init_rec.F>`\ (xx_atemp)
+	             **example here for atemp: [startrec,endrec,diffrec]=[24,37,14]**
+            \|-:filelink:`active_read_xy <pkg/autodiff/active_file.F>`\ (fnamegenIn,lrec)
+	             **read in xx_atemp.0000000001.data from 24->37**
+            \|-:filelink:`active_write_xy <pkg/autodiff/active_file.F>`\ (fnamegenOut,irec)
+	             **write out to xx_atemp.effective.0000000001.data from 1->14**
+            \|-:filelink:`active_read_xy <pkg/autodiff/active_file.F>`\ (fnamegenOut,irec)
+	             **read in xx_atemp.effective.0000000001.data 1->14, do some math**
+            \|-:filelink:`active_write_xy <pkg/autodiff/active_file.F>`\ (fnamegenTmp,irec)
+	             **write out to xx_atemp.tmp.0000000001.data 1->14**
+            do irec=1,diffrec
+            \|-:filelink:`active_read_xy <pkg/autodiff/active_file.F>`\ (fnamegenOut,irec)
+            \|-:filelink:`mds_read_field <pkg/mdsio/mdsio_read_field.F>`\ (xx_gentim2d_weight,jrec)
+	             **if variaweight, jrec=lrec, else jrec=1**
+            \|-:filelink:`smooth_correl2d <pkg/smooth/smooth_correl2d.F>`  **or smooth2d**
+            \|-xx_gen/sqrt(wgentim2d)  **if doscaling**
+            \|-exch_xy_rl
+            \|-:filelink:`active_write_xy <pkg/autodiff/active_file.F>`\ (fnamegenOut,irec)
+	             **write out to xx_atemp.effective.0000000001.data (smooth/scaled)**
+            enddo
+
+The difference in length of records for 3[a,b] compared to 1[a,b] and 2[a,b] is
+due to the fact that we need to access records :varlink:`startrec` thru
+:varlink:`endrec` in 3a, i.e., file 3a needs a total of at least
+:varlink:`endrec` records; file 3b is automatically generated to provide access
+to :varlink:`endrec` thru :varlink:`startrec` (i.e., in reverse order). File
+3b, in particular, is where adjoint sensitivity will be accumulated backward
+and written; note the model would thus crash if its last record were
+:varlink:`diffrec` rather than :varlink:`endrec`.  For pairs 1[a,b] and 2[a,b],
+because they are generated *after* we have already accessed the correct records
+:varlink:`startrec` to :varlink:`endrec` in 3a, we simply create and write out
+these records in the shorter file size :varlink:`diffrec`.  After their file
+size initializations, the control adjustment field with physical unit from file
+1a is passed on to :filelink:`pkg/exf` for surface forcing application.
+
+Note, that :varlink:`xx_gentim2d_startdate` can be used to control how many
+records the different :varlink:`xx_gentim2d` files
+contain. :numref:`xx_var_sketch` illustrates a few examples.
+
+  .. figure:: figs/ctrl_var_sketch.*
+    :width: 100%
+    :align: center
+    :alt: xx_var_sketch
+    :name: xx_var_sketch
+
+    Sketch illustrating which parts of the timeline are covered by which
+    :varlink:`xx_gentim2d` files.
 
 .. _shi_ctrl:
 

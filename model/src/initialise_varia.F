@@ -6,9 +6,29 @@
 #ifdef ALLOW_CTRL
 # include "CTRL_OPTIONS.h"
 #endif
-#ifdef ALLOW_SHELFICE
-# include "SHELFICE_OPTIONS.h"
-#endif
+#ifdef ALLOW_TAPENADE
+# ifdef ALLOW_SHELFICE
+#  include "SHELFICE_OPTIONS.h"
+# endif
+# ifdef ALLOW_GMREDI
+#  include "GMREDI_OPTIONS.h"
+# endif
+# ifdef ALLOW_EXF
+#  include "EXF_OPTIONS.h"
+# endif
+# ifdef ALLOW_SEAICE
+#  include "SEAICE_OPTIONS.h"
+# endif
+# ifdef ALLOW_ECCO
+#  include "ECCO_OPTIONS.h"
+# endif
+c# ifdef ALLOW_THSICE
+c# include "THSICE_OPTIONS.h"
+c# endif
+# ifdef ALLOW_BLING
+#  include "BLING_OPTIONS.h"
+# endif
+#endif /* ALLOW_TAPENADE */
 
 CBOP
 C     !ROUTINE: INITIALISE_VARIA
@@ -75,8 +95,6 @@ C       |-- STATE_SUMMARY
 C       |
 C       |-- MONITOR
 C       |
-C       |-- DO_STATEVARS_TAVE
-C       |
 C       |-- DO_THE_MODEL_IO
 
 C     !USES:
@@ -90,17 +108,70 @@ C     == Global variables ==
 #ifdef ALLOW_AUTODIFF
 # include "GRID.h"
 # include "FFIELDS.h"
-# include "CTRL_FIELDS.h"
-# if (defined ALLOW_SHELFICE) && (defined ALLOW_GENARR2D_CONTROL)
-#  include "SHELFICE.h"
+# if ( defined ALLOW_CTRL && defined ALLOW_GENTIM2D_CONTROL && !defined ALLOW_TAPENADE )
+#  include "CTRL_SIZE.h"
+#  include "CTRL_DUMMY.h"
 # endif
-#endif
+#endif /* ALLOW_AUTODIFF */
+
+#ifdef ALLOW_TAPENADE
+# ifdef ALLOW_GMREDI
+#  include "GMREDI.h"
+# endif
+# ifdef ALLOW_CTRL
+#  include "CTRL_SIZE.h"
+#  include "CTRL.h"
+#  include "CTRL_GENARR.h"
+#  include "CTRL_DUMMY.h"
+# endif
+# ifdef ALLOW_CD_CODE
+#  include "CD_CODE_VARS.h"
+# endif
+# ifdef ALLOW_DIC
+#  include "DIC_VARS.h"
+#  include "DIC_ATMOS.h"
+#  include "DIC_LOAD.h"
+# endif
+# ifdef ALLOW_PTRACERS
+#  include "PTRACERS_SIZE.h"
+#  include "PTRACERS_FIELDS.h"
+#  include "PTRACERS_PARAMS.h"
+# endif
+# ifdef ALLOW_GENERIC_ADVDIFF
+#  include "GAD_SOM_VARS.h"
+# endif
+# ifdef ALLOW_EXF
+#  include "EXF_PARAM.h"
+#  include "EXF_INTERP_SIZE.h"
+#  include "EXF_INTERP_PARAM.h"
+#  include "EXF_FIELDS.h"
+# endif
+# ifdef ALLOW_STREAMICE
+#  include "STREAMICE.h"
+#  include "STREAMICE_CG.h"
+# endif
+# ifdef ALLOW_THSICE
+#  include "THSICE_VARS.h"
+# endif
+# ifdef ALLOW_SEAICE
+#  include "SEAICE_SIZE.h"
+#  include "SEAICE.h"
+# endif
+# ifdef ALLOW_ECCO
+#  include "ECCO_SIZE.h"
+#  include "ECCO.h"
+# endif
+# ifdef ALLOW_BLING
+#  include "BLING_VARS.h"
+#  include "BLING_LOAD.h"
+# endif
+#endif /* ALLOW_TAPENADE */
 
 C     !INPUT/OUTPUT PARAMETERS:
       INTEGER myThid
 
 C     !LOCAL VARIABLES:
-#ifndef ALLOW_AUTODIFF_WHTAPEIO
+#ifdef INCLUDE_CONVECT_INI_CALL
       INTEGER bi,bj
 #endif
 CEOP
@@ -114,7 +185,7 @@ CEOP
 #endif /* ALLOW_AUTODIFF */
 
 #ifdef ALLOW_DEPTH_CONTROL
-C--   Intialize the depth for TAF/TAMC
+C--   Intialize the depth for TAF
       CALL INI_DEPTHS( myThid )
 C--   Get control parameter depth
       CALL CTRL_DEPTH_INI( myThid )
@@ -171,7 +242,7 @@ C--   Initialise model forcing fields.
       CALL INI_FORCING( myThid )
 
 #ifdef ALLOW_AUTODIFF
-C--   Initialise active fields to help TAMC
+C--   Initialise active fields to help TAF
       if (useAUTODIFF) CALL AUTODIFF_INIT_VARIA( myThid )
 #endif
 
@@ -183,15 +254,10 @@ C--   Initialize variable data for packages
 # ifdef NONLIN_FRSURF
 CADJ STORE recip_hFacC = tapelev_init, key = 1
 # endif
-# if (defined ALLOW_SHELFICE) && (defined ALLOW_GENARR2D_CONTROL)
-CADJ STORE shelficeFreshwaterFlux = tapelev_init, key = 1
-CADJ STORE shelficeHeatFlux = tapelev_init, key = 1
-#  ifndef SHI_ALLOW_GAMMAFRICT
-CADJ STORE shiTransCoeffT = tapelev_init, key = 1
-CADJ STORE shiTransCoeffS = tapelev_init, key = 1
-#  else
-CADJ STORE shiCDragFld = tapelev_init, key = 1
-#  endif
+# ifdef ALLOW_GENTIM2D_CONTROL
+C     It not clear, why this is needed and hopefully we will find a
+C     better way to avoid the recomputation warning.
+CADJ STORE xx_gentim2d_dummy = dummytape, key = 1
 # endif
 #endif
       CALL PACKAGES_INIT_VARIABLES( myThid )
@@ -211,7 +277,7 @@ c      CALL THE_CORRECTION_STEP(startTime, nIter0, myThid)
 c     ENDIF
 c#endif
 
-#ifndef ALLOW_AUTODIFF_WHTAPEIO
+#ifdef INCLUDE_CONVECT_INI_CALL
 C--   Initial conditions are convectively adjusted (for historical reasons)
       IF ( startTime .EQ. baseTime .AND. cAdjFreq .NE. 0. ) THEN
 #ifdef ALLOW_DEBUG
@@ -226,7 +292,7 @@ CADJ loop = parallel
          ENDDO
         ENDDO
       ENDIF
-#endif /* ALLOW_AUTODIFF_WHTAPEIO */
+#endif /* INCLUDE_CONVECT_INI_CALL */
 
 #ifdef NONLIN_FRSURF
 C--   Compute the surface level thickness <-- function of etaH(n)
@@ -316,14 +382,6 @@ C--   Finally summarise the model state
 C--   Check status of initial state (statistics, cfl, etc...)
       CALL MONITOR( startTime, nIter0, myThid )
 #endif /* ALLOW_MONITOR */
-
-#ifdef ALLOW_TIMEAVE
-#ifdef ALLOW_DEBUG
-      IF (debugMode) CALL DEBUG_CALL('DO_STATEVARS_TAVE',myThid)
-#endif
-C--   Initialise time-average arrays with initial state values
-      CALL DO_STATEVARS_TAVE( startTime, nIter0, myThid )
-#endif
 
 C--   Dump initial state to files
 #ifdef ALLOW_DEBUG

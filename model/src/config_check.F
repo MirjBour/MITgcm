@@ -1,3 +1,4 @@
+#define EXACT_CONSERV
 #include "PACKAGES_CONFIG.h"
 #include "CPP_OPTIONS.h"
 #ifdef ALLOW_MOM_COMMON
@@ -27,16 +28,17 @@ C     === Global variables ===
 #include "SIZE.h"
 #include "EEPARAMS.h"
 #include "PARAMS.h"
+#ifdef ALLOW_MOM_COMMON
+# include "MOM_VISC.h"
+#endif
 
 C     !INPUT/OUTPUT PARAMETERS:
-C     === Routine arguments ===
-C     myThid -  Number of this instances of CONFIG_CHECK
+C     myThid   ::  my Thread Id number
       INTEGER myThid
-CEndOfInterface
 
 C     !LOCAL VARIABLES:
-C     == Local variables ==
-C     msgBuf :: Informational/error message buffer
+C     msgBuf   :: Informational/error message buffer
+C     errCount :: error counter (inconsitent params and other errors)
       CHARACTER*(MAX_LEN_MBUF) msgBuf
       INTEGER errCount
 CEOP
@@ -57,6 +59,30 @@ C      (as long as all procs finish cleanly by calling ALL_PROC_DIE)
       errCount = 0
 
 C-  check that CPP option is "defined" when running-flag parameter is on:
+
+#ifndef INCLUDE_CONVECT_CALL
+C     o Check that Convective-adjustment code is compiled If cAdjFreq <> 0
+      IF ( cAdjFreq .NE. 0. ) THEN
+#ifdef INCLUDE_CONVECT_INI_CALL
+        WRITE(msgBuf,'(2A)') '** Warning ** CONFIG_CHECK: ',
+     &  'Convective-Adjustment (cAdjFreq) turned off (except INI)'
+        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
+     &                      SQUEEZE_RIGHT, myThid )
+        WRITE(msgBuf,'(2A)') '** Warning ** CONFIG_CHECK: ',
+     &  ' without "#define INCLUDE_CONVECT_CALL" in CPP_OPTIONS.h'
+        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
+     &                      SQUEEZE_RIGHT, myThid )
+#else
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: ',
+     &  'Cannot use Convective-Adjustment (cAdjFreq) without'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: ',
+     &  ' defining INCLUDE_CONVECT_(CALL/INI_CALL) in CPP_OPTIONS.h'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+#endif
+      ENDIF
+#endif /* ndef INCLUDE_CONVECT_CALL */
 
 C     o If diffKrFile is set, then we should make sure the corresponing
 C       code is being compiled
@@ -265,15 +291,15 @@ C     QGLeith code has not been compiled.
 #endif
 
 #ifndef EXACT_CONSERV
-      IF (exactConserv) THEN
-        WRITE(msgBuf,'(A)')
-     &   'CONFIG_CHECK: #undef EXACT_CONSERV and'
+c     IF ( exactConserv ) THEN
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: ',
+     &   '#undef EXACT_CONSERV not allowed in CPP_OPTIONS.h'
         CALL PRINT_ERROR( msgBuf, myThid )
-        WRITE(msgBuf,'(A)')
-     &   'CONFIG_CHECK: exactConserv is TRUE'
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: ',
+     &   ' since CPP option EXACT_CONSERV has been retired'
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
-      ENDIF
+c     ENDIF
 #endif
 
 #ifndef NONLIN_FRSURF
@@ -414,7 +440,7 @@ C     o Need to use S/R APPLY_FORCING_U,V to get Tidal forcing
 #ifndef ALLOW_FRICTION_HEATING
       IF ( addFrictionHeating ) THEN
         WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: addFrictionHeating=T',
-     &  ' but FRICTIONAL_HEATING code is not compiled.'
+     &   ' but FRICTIONAL_HEATING code is not compiled.'
         CALL PRINT_ERROR( msgBuf, myThid )
         WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: Re-compile with:',
      &   ' "#define ALLOW_FRICTION_HEATING" (CPP_OPTIONS.h)'
@@ -423,8 +449,37 @@ C     o Need to use S/R APPLY_FORCING_U,V to get Tidal forcing
       ENDIF
 #endif
 
-#ifndef ALLOW_BALANCE_FLUXES
-      IF (balanceEmPmR .OR. balanceQnet) THEN
+#ifdef SHORTWAVE_HEATING
+      IF ( fluidIsAir .AND. selectPenetratingSW.GT.0 ) THEN
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK:',
+     &   ' Water column short wave heating (selectPenetratingSW>0)'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK:',
+     &   '  cannot be used in Atmospheric setup (fluidIsAir=T)'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+      ENDIF
+#else /* SHORTWAVE_HEATING */
+      IF ( selectPenetratingSW.GT.0 ) THEN
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: selectPenetratingSW>0',
+     &   ' but SHORTWAVE_HEATING code is not compiled.'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: Re-compile with:',
+     &   ' "#define SHORTWAVE_HEATING" (CPP_OPTIONS.h)'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+      ENDIF
+#endif /* SHORTWAVE_HEATING */
+
+#ifdef ALLOW_BALANCE_FLUXES
+      IF ( selectBalanceEmPmR.LT.0 .OR. selectBalanceEmPmR.GT.2 ) THEN
+        WRITE(msgBuf,'(2A,I6,A)') 'CONFIG_CHECK: ',
+     &   'selectBalanceEmPmR=', selectBalanceEmPmR,' : invalid value'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+      ENDIF
+#else /* ALLOW_BALANCE_FLUXES */
+      IF ( selectBalanceEmPmR.NE.0 .OR. balanceQnet ) THEN
         WRITE(msgBuf,'(A,A)')
      &  'CONFIG_CHECK: balanceEmPmR/Qnet is set but balance code ',
      &  'is not compiled.'
@@ -434,7 +489,7 @@ C     o Need to use S/R APPLY_FORCING_U,V to get Tidal forcing
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
       ENDIF
-#endif
+#endif /* ALLOW_BALANCE_FLUXES */
 
 #ifndef ALLOW_BALANCE_RELAX
       IF (balanceThetaClimRelax .OR. balanceSaltClimRelax) THEN
@@ -474,6 +529,18 @@ C     o Need to use S/R APPLY_FORCING_U,V to get Tidal forcing
         errCount = errCount + 1
       ENDIF
 #endif /* ALLOW_SRCG */
+
+#ifndef ALLOW_BOTTOMDRAG_ROUGHNESS
+      IF (zRoughBot .GT. 0.) THEN
+        WRITE(msgBuf,'(A,A)') 'CONFIG_CHECK: zRoughBot > 0.',
+     &  ' but bottom drag code for roughness length is not compiled'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: Re-compile with',
+     &  ' #define ALLOW_BOTTOMDRAG_ROUGHNESS (MOM_COMMON_OPTIONS.h)'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+      ENDIF
+#endif /* ALLOW_BOTTOMDRAG_ROUGHNESS */
 
       IF ( useNSACGSolver .AND. useSRCGSolver ) THEN
         WRITE(msgBuf,'(A,A)')
@@ -618,7 +685,7 @@ C--   Free-surface related limitations:
         errCount = errCount + 1
       ENDIF
 
-      IF (rigidLid .AND. exactConserv) THEN
+      IF ( rigidLid .AND. exactConserv ) THEN
         WRITE(msgBuf,'(A)')
      &   'CONFIG_CHECK: exactConserv not compatible with'
         CALL PRINT_ERROR( msgBuf, myThid )
@@ -638,7 +705,7 @@ C--   Free-surface related limitations:
         errCount = errCount + 1
       ENDIF
 
-      IF (rigidLid .AND. useRealFreshWaterFlux) THEN
+      IF ( rigidLid .AND. useRealFreshWaterFlux ) THEN
         WRITE(msgBuf,'(A)')
      &   'CONFIG_CHECK: useRealFreshWaterFlux not compatible with'
         CALL PRINT_ERROR( msgBuf, myThid )
@@ -648,7 +715,14 @@ C--   Free-surface related limitations:
         errCount = errCount + 1
       ENDIF
 
-      IF (nonlinFreeSurf.NE.0 .AND. .NOT.exactConserv) THEN
+      IF ( implicDiv2DFlow.NE.oneRL .AND. .NOT.exactConserv ) THEN
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: implicDiv2DFlow < 1 ',
+     &   'requires exactConserv= T'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+      ENDIF
+
+      IF ( nonlinFreeSurf.NE.0 .AND. .NOT.exactConserv ) THEN
         WRITE(msgBuf,'(A)')
      &   'CONFIG_CHECK: nonlinFreeSurf cannot be used'
         CALL PRINT_ERROR( msgBuf, myThid )
@@ -658,7 +732,7 @@ C--   Free-surface related limitations:
         errCount = errCount + 1
       ENDIF
 
-      IF (select_rStar.NE.0 .AND. .NOT.exactConserv) THEN
+      IF ( select_rStar.NE.0 .AND. .NOT.exactConserv ) THEN
         WRITE(msgBuf,'(A)')
      &   'CONFIG_CHECK: r* Coordinate cannot be used'
         CALL PRINT_ERROR( msgBuf, myThid )
@@ -729,32 +803,18 @@ c     ENDIF
      &                      SQUEEZE_RIGHT, myThid )
       ENDIF
 
-      IF ( useRealFreshWaterFlux .AND. exactConserv
-     &     .AND. implicDiv2DFlow.EQ.0. _d 0
+      IF ( useRealFreshWaterFlux .AND. implicDiv2DFlow.EQ.zeroRL
      &     .AND. startTime.NE.baseTime .AND. usePickupBeforeC54 ) THEN
         WRITE(msgBuf,'(A)')
-     &   'CONFIG_CHECK: RealFreshWaterFlux+implicSurfP=0+exactConserv:'
+     &   'CONFIG_CHECK: usePickupBeforeC54 restart does not work with'
         CALL PRINT_ERROR( msgBuf, myThid )
         WRITE(msgBuf,'(A)')
-     &   'CONFIG_CHECK: restart not implemented in this config'
+     &   'CONFIG_CHECK:  implicDiv2DFlow=0 + useRealFreshWaterFlux'
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
       ENDIF
 
       IF ( useRealFreshWaterFlux .AND. .NOT.exactConserv
-     &     .AND. implicDiv2DFlow.NE.1. ) THEN
-        WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
-     &   'RealFreshWater & implicDiv2DFlow < 1'
-        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
-     &                      SQUEEZE_RIGHT, myThid )
-        WRITE(msgBuf,'(2A)') '** WARNING ** works better',
-     &   ' with exactConserv=.T. (+ #define EXACT_CONSERV)'
-        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
-     &                      SQUEEZE_RIGHT, myThid )
-      ENDIF
-
-#ifdef EXACT_CONSERV
-      IF (useRealFreshWaterFlux .AND. .NOT.exactConserv
      &            .AND. buoyancyRelation.EQ.'OCEANICP' ) THEN
         WRITE(msgBuf,'(A)')
      &   'CONFIG_CHECK: RealFreshWaterFlux with OCEANICP'
@@ -764,19 +824,6 @@ c     ENDIF
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
       ENDIF
-#else
-      IF (useRealFreshWaterFlux
-     &            .AND. buoyancyRelation.EQ.'OCEANICP' ) THEN
-        WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
-     &               'E-P effects on wVel are not included'
-        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
-     &                      SQUEEZE_RIGHT, myThid )
-        WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
-     &               '==> use #define EXACT_CONSERV to fix it'
-        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
-     &                      SQUEEZE_RIGHT, myThid )
-      ENDIF
-#endif /* EXACT_CONSERV */
 
       IF ( selectAddFluid.LT.-1 .OR. selectAddFluid.GT.2 ) THEN
         WRITE(msgBuf,'(A,I10,A)') 'CONFIG_CHECK: selectAddFluid=',
@@ -854,13 +901,6 @@ C--   Non-hydrostatic and 3-D solver related limitations:
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
       ENDIF
-      IF ( nonHydrostatic .AND. .NOT.exactConserv
-     &     .AND. implicDiv2DFlow.NE.1. ) THEN
-        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: Needs exactConserv=T',
-     &               ' for nonHydrostatic with implicDiv2DFlow < 1'
-        CALL PRINT_ERROR( msgBuf, myThid )
-        errCount = errCount + 1
-      ENDIF
       IF ( nonHydrostatic .AND.
      &     implicitNHPress.NE.implicSurfPress ) THEN
         WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
@@ -910,6 +950,37 @@ C--   Momentum related limitations:
         errCount = errCount + 1
        ENDIF
       ENDIF
+#ifdef ALLOW_MOM_COMMON
+      IF ( vectorInvariantMomentum .AND. momViscosity .AND.
+     &     usingSphericalPolarGrid .AND. cosPower.NE.zeroRL ) THEN
+#ifdef ISOTROPIC_COS_SCALING
+       IF ( no_slip_sides ) THEN
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: inconsistent ',
+     &    'no_slip_sides & ISOTROPIC_COS_SCALING in mom_vecinv'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+       ELSE
+        WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
+     &    'ISOTROPIC_COS_SCALING not implemented in mom_vecinv'
+        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
+     &                      SQUEEZE_RIGHT, myThid )
+       ENDIF
+#endif /* ISOTROPIC_COS_SCALING */
+#ifdef COSINEMETH_III
+       IF ( useBiharmonicVisc .AND. no_slip_sides ) THEN
+        WRITE(msgBuf,'(2A)') 'CONFIG_CHECK: inconsistent ',
+     &    'no_slip_sides & COSINEMETH_III in mom_vecinv'
+        CALL PRINT_ERROR( msgBuf, myThid )
+        errCount = errCount + 1
+       ELSEIF ( useBiharmonicVisc ) THEN
+        WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
+     &    'COSINEMETH_III not implemented in mom_vecinv'
+        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
+     &                      SQUEEZE_RIGHT, myThid )
+       ENDIF
+#endif /* COSINEMETH_III */
+      ENDIF
+#endif /* ALLOW_MOM_COMMON */
       IF ( .NOT.vectorInvariantMomentum .AND. momAdvection ) THEN
        IF ( usingCurvilinearGrid ) THEN
         WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: ',
@@ -1041,12 +1112,11 @@ C--   Grid limitations:
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
        ENDIF
-       IF ( useFLT .OR. useZonal_Filt .OR. useECCO ) THEN
-        WRITE(msgBuf,'(2A)')
-     &       'CONFIG_CHECK: specifying Euler angles will probably ',
-     &       'not work with pkgs FLT, ZONAL_FLT, ECCO'
-        CALL PRINT_ERROR( msgBuf, myThid )
-        errCount = errCount + 1
+       IF ( useFLT .OR. useECCO ) THEN
+        WRITE(msgBuf,'(2A)') '** WARNING ** CONFIG_CHECK: specifying',
+     &       ' Euler angles may not work with pkgs FLT, ECCO'
+        CALL PRINT_MESSAGE( msgBuf, errorMessageUnit,
+     &                      SQUEEZE_RIGHT, myThid )
        ENDIF
       ENDIF
 

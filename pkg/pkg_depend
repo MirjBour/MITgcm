@@ -28,6 +28,7 @@ ptracers	+generic_advdiff
 matrix		+ptracers	-gchem
 gchem		+ptracers
 dic		+gchem
+bling		+gchem		-dic
 cfc		+gchem
 fizhi		+gridalt	+diagnostics	-aim
 fizhi		+atm_common
@@ -35,10 +36,12 @@ aim		+atm_common
 aim_v23		+atm_common
 exf		=cal
 profiles	+cal
+obsfit		+cal
 flt		+mdsio
 autodiff	+mdsio
 ctrl		+mdsio
 ecco		+mdsio		+cal
+tapenade	+autodiff
 grdchk		+autodiff	+cost		+ctrl
 showflops	+runclock
-
+steep_cavity	+shelfice

@@ -44,7 +44,7 @@ C     myThid :: my Thread Id. number
       INTEGER myIter
       INTEGER myThid
 
-#ifdef SEAICE_ALLOW_KRYLOV
+#if ( defined SEAICE_CGRID && defined SEAICE_ALLOW_KRYLOV )
 C     !FUNCTIONS:
       LOGICAL  DIFFERENT_MULTIPLE
       EXTERNAL DIFFERENT_MULTIPLE
@@ -219,7 +219,7 @@ C     the Krylov iteration)
      O      e11, e22, e12,
      I      0, myTime, myIter, myThid )
        CALL SEAICE_CALC_VISCOSITIES(
-     I      e11, e22, e12, zMin, zMax, HEFFM, press0, tensileStrFac,
+     I      e11, e22, e12, SEAICE_zMin, SEAICE_zMax, HEFFM, press0, tensileStrFac,
 #ifdef SEAICE_ALLOW_DAMAGE
      I      damage, damageZ, press0Z,
 #endif /* SEAICE_ALLOW_DAMAGE */
@@ -445,7 +445,7 @@ C     some output diagnostics
          _BEGIN_MASTER( myThid )
          totalPicardItersLoc =
      &        picardIterMax*(myIter-nIter0)+picardIter
-         WRITE(msgBuf,'(2A,2(1XI6),2E12.5)')
+         WRITE(msgBuf,'(2A,2(1X,I6),2E12.5)')
      &        ' S/R SEAICE_KRYLOV: Picard iterate / total, ',
      &        'KRYLOVgamma_lin, initial norm = ',
      &        picardIter, totalPicardItersLoc,
@@ -662,7 +662,7 @@ C     Print more debugging information
        _END_MASTER( myThid )
       ENDIF
 
-#endif /* SEAICE_ALLOW_KRYLOV */
+#endif /* SEAICE_CGRID and SEAICE_ALLOW_KRYLOV */
 
       RETURN
       END

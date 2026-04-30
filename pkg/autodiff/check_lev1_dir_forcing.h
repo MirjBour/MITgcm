@@ -10,6 +10,7 @@ C     cases where these stores may become necessary, we just add them
 C     here for all forcing fields under the sun. TAF will pick the
 C     correct directives as they become necessary.
 C
+CADJ STORE gcmSST     = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE sst        = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE sss        = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE qnet       = comlev1, key = ikey_dynamics, kind = isbyte
@@ -61,7 +62,7 @@ CADJ STORE runoftemp  = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE saltflx    = comlev1, key = ikey_dynamics, kind = isbyte
 #endif
 #  ifdef EXF_SEAICE_FRACTION
-CADJ STORE areamask   = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE exf_iceFraction=comlev1,key=ikey_dynamics, kind = isbyte
 #  endif
 #  ifdef EXF_ALLOW_TIDES
 CADJ STORE tidePot    = comlev1, key = ikey_dynamics, kind = isbyte
@@ -80,20 +81,23 @@ CADJ STORE climvstr   = comlev1, key = ikey_dynamics, kind = isbyte
 #ifdef ALLOW_GEOTHERMAL_FLUX
 CADJ STORE geothermalFlux = comlev1, key=ikey_dynamics, kind=isbyte
 #endif
+#ifdef ALLOW_STEEP_ICECAVITY
+CADJ STORE addMass    = comlev1, key=ikey_dynamics, kind=isbyte
+#endif
 # ifdef ALLOW_BLING
 CADJ STORE wind       = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE atmosP     = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE silica     = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE fIce       = comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE InputFe    = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE inputFe    = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE apco2      = comlev1, key = ikey_dynamics, kind = isbyte
 # endif /* ALLOW_BLING */
 # ifdef ALLOW_DIC
 CADJ STORE wind       = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE atmosP     = comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE silica     = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE silicaSurf = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE fIce       = comlev1, key = ikey_dynamics, kind = isbyte
-CADJ STORE InputFe    = comlev1, key = ikey_dynamics, kind = isbyte
+CADJ STORE inputFe    = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE PAR        = comlev1, key = ikey_dynamics, kind = isbyte
 CADJ STORE CHL        = comlev1, key = ikey_dynamics, kind = isbyte
 # endif /* ALLOW_DIC */

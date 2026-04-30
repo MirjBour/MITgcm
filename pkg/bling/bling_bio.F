@@ -201,12 +201,13 @@ C
       _RL tmp_ML
 #endif
 #ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER itdkey
+C     tkey :: tape key (tile dependent)
+      INTEGER tkey
 #endif
 CEOP
 
 #ifdef ALLOW_AUTODIFF_TAMC
-      itdkey = bi + (bj - 1)*nSx + (ikey_dynamics - 1)*nSx*nSy
+      tkey = bi + (bj - 1)*nSx + (ikey_dynamics - 1)*nSx*nSy
 #endif
 
 c ---------------------------------------------------------------------
@@ -432,12 +433,12 @@ c  For the effective resource limitation, there is an option to replace
 c  the default Liebig limitation (the minimum of Michaelis-Menton
 c  PO4-limitation, or iron-limitation) by the product (safer for adjoint)
 
-#ifdef MULT_NUT_LIM
-          Pc_m = Pc_0*expkT(i,j,k)
-     &           *PO4_lim(i,j,k)*Fe_lim(i,j,k)*maskC(i,j,k,bi,bj)
-#else
+#ifdef MIN_NUT_LIM
           Pc_m = Pc_0*expkT(i,j,k)
      &           *min(PO4_lim(i,j,k), Fe_lim(i,j,k))*maskC(i,j,k,bi,bj)
+#else
+          Pc_m = Pc_0*expkT(i,j,k)
+     &           *PO4_lim(i,j,k)*Fe_lim(i,j,k)*maskC(i,j,k,bi,bj)
 #endif
 
 c ---------------------------------------------------------------------
@@ -542,8 +543,8 @@ c  limitation, with a maximum Fe:P uptake ratio of Fe2p_max
 
 c  Separate loop for adjoint stores
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE Phy_sm_local   = comlev1_bibj, key=itdkey, kind=isbyte
-CADJ STORE Phy_lg_local   = comlev1_bibj, key=itdkey, kind=isbyte
+CADJ STORE Phy_sm_local   = comlev1_bibj, key=tkey, kind=isbyte
+CADJ STORE Phy_lg_local   = comlev1_bibj, key=tkey, kind=isbyte
 #endif
 
       DO k=1,Nr

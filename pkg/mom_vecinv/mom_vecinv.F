@@ -1,9 +1,10 @@
 #include "MOM_VECINV_OPTIONS.h"
+#include "MOM_COMMON_OPTIONS.h"
 #ifdef ALLOW_AUTODIFF
 # include "AUTODIFF_OPTIONS.h"
 #endif
-#ifdef ALLOW_MOM_COMMON
-# include "MOM_COMMON_OPTIONS.h"
+#ifdef ALLOW_GGL90
+# include "GGL90_OPTIONS.h"
 #endif
 
       SUBROUTINE MOM_VECINV(
@@ -38,11 +39,9 @@ C     == Global variables ==
 #include "SURFACE.h"
 #include "DYNVARS.h"
 #include "FFIELDS.h"
-#ifdef ALLOW_MOM_COMMON
-# include "MOM_VISC.h"
-#endif
-#ifdef ALLOW_TIMEAVE
-# include "TIMEAVE_STATV.h"
+#include "MOM_VISC.h"
+#if ( defined ALLOW_GGL90 && defined ALLOW_GGL90_LANGMUIR )
+# include "GGL90.h"
 #endif
 #ifdef ALLOW_MNC
 # include "MNC_PARAMS.h"
@@ -82,14 +81,19 @@ C     myThid  :: my Thread Id number
       INTEGER myThid
 
 #ifdef ALLOW_MOM_VECINV
-
 C     == Functions ==
       LOGICAL  DIFFERENT_MULTIPLE
       EXTERNAL DIFFERENT_MULTIPLE
+#ifdef ALLOW_DIAGNOSTICS
+      LOGICAL  DIAGNOSTICS_IS_ON
+      EXTERNAL DIAGNOSTICS_IS_ON
+#endif
 
 C     == Local variables ==
 C     strainBC :: same as strain but account for no-slip BC
 C     vort3BC  :: same as vort3  but account for no-slip BC
+C     i,j      :: Loop counters
+      INTEGER i,j
       _RL      vF (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL      vrF(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL      uCf(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
@@ -99,6 +103,10 @@ C     vort3BC  :: same as vort3  but account for no-slip BC
       _RS r_hFacZ (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL uFld    (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL vFld    (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+#if ( defined ALLOW_GGL90 && defined ALLOW_GGL90_LANGMUIR )
+      _RL uRes    (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+      _RL vRes    (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
+#endif
       _RL del2u   (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL del2v   (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL dStar   (1-OLx:sNx+OLx,1-OLy:sNy+OLy)
@@ -120,20 +128,20 @@ C     vort3BC  :: same as vort3  but account for no-slip BC
       _RL viscAh_D(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL viscA4_Z(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
       _RL viscA4_D(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
-C     i,j    :: Loop counters
-      INTEGER i,j
 C     xxxFac :: On-off tracer parameters used for switching terms off.
       _RL  ArDudrFac
       _RL  ArDvdrFac
       _RL  sideMaskFac
       LOGICAL bottomDragTerms
       LOGICAL writeDiag
+#if ( defined ALLOW_MOM_TEND_EXTRA_DIAGS && defined ALLOW_DIAGNOSTICS )
+      LOGICAL botDragDiagIsOn
+      LOGICAL shelfDragDiagIsOn
+#endif /* ALLOW_MOM_TEND_EXTRA_DIAGS && ALLOW_DIAGNOSTICS */
 #ifdef ALLOW_AUTODIFF_TAMC
-      INTEGER act0, act1, act2, act3, act4
-      INTEGER max0, max1, max2, max3
-      INTEGER imomkey
+C     kkey :: tape key (depends on level and tile indices)
+      INTEGER kkey
 #endif
-
 #ifdef ALLOW_MNC
       INTEGER offsets(9)
       CHARACTER*(1) pf
@@ -149,19 +157,8 @@ C--   (at least in part)
 #endif
 
 #ifdef ALLOW_AUTODIFF_TAMC
-      act0 = k - 1
-      max0 = Nr
-      act1 = bi - myBxLo(myThid)
-      max1 = myBxHi(myThid) - myBxLo(myThid) + 1
-      act2 = bj - myByLo(myThid)
-      max2 = myByHi(myThid) - myByLo(myThid) + 1
-      act3 = myThid - 1
-      max3 = nTx*nTy
-      act4 = ikey_dynamics - 1
-      imomkey = (act0 + 1) + act1*max0
-     &                     + act2*max0*max1
-     &                     + act3*max0*max1*max2
-     &                     + act4*max0*max1*max2*max3
+      kkey = bi + (bj-1)*nSx + (ikey_dynamics-1)*nSx*nSy
+      kkey = k  + (kkey-1)*Nr
 #endif /* ALLOW_AUTODIFF_TAMC */
 
       writeDiag = DIFFERENT_MULTIPLE(diagFreq, myTime, deltaTClock)
@@ -200,6 +197,10 @@ C--   Initialise intermediate terms
         zStar(i,j) = 0.
         guDiss(i,j)= 0.
         gvDiss(i,j)= 0.
+#if ( defined ALLOW_GGL90 && defined ALLOW_GGL90_LANGMUIR )
+c       uRes(i,j)  = 0.
+c       vRes(i,j)  = 0.
+#endif
         vort3(i,j) = 0.
         omega3(i,j)= 0.
         KE(i,j)    = 0.
@@ -245,6 +246,19 @@ C       vorticity at a no-slip boundary by a factor of 2 = sideDragFactor
        bottomDragTerms=.FALSE.
       ENDIF
 
+#if ( defined ALLOW_MOM_TEND_EXTRA_DIAGS && defined ALLOW_DIAGNOSTICS )
+      botDragDiagIsOn = .FALSE.
+      shelfDragDiagIsOn = .FALSE.
+      IF ( useDiagnostics ) THEN
+       IF ( bottomDragTerms ) botDragDiagIsOn =
+     &            DIAGNOSTICS_IS_ON( 'UBotDrag', myThid )
+     &       .OR. DIAGNOSTICS_IS_ON( 'VBotDrag', myThid )
+       IF ( useShelfIce ) shelfDragDiagIsOn =
+     &            DIAGNOSTICS_IS_ON( 'UShIDrag', myThid )
+     &       .OR. DIAGNOSTICS_IS_ON( 'VShIDrag', myThid )
+      ENDIF
+#endif /* ALLOW_MOM_TEND_EXTRA_DIAGS && ALLOW_DIAGNOSTICS */
+
 C--   Calculate open water fraction at vorticity points
       CALL MOM_CALC_HFACZ(bi,bj,k,hFacZ,r_hFacZ,myThid)
 
@@ -257,18 +271,10 @@ C     Make local copies of horizontal flow field
       ENDDO
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE ufld(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE vfld(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE hFacZ(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE r_hFacZ(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE fverukm(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE fvervkm(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE hFacZ(:,:)   = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE r_hFacZ(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE fverukm(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE fvervkm(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
 C note (jmc) : Dissipation and Vort3 advection do not necesary
@@ -278,15 +284,6 @@ c     CALL MOM_VI_HFACZ_DISS(bi,bj,k,hFacZ,r_hFacZ,myThid)
       CALL MOM_CALC_KE(bi,bj,k,selectKEscheme,uFld,vFld,KE,myThid)
 
       CALL MOM_CALC_RELVORT3(bi,bj,k,uFld,vFld,hFacZ,vort3,myThid)
-
-#ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE KE(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE vort3(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE vort3bc(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-#endif
 
 C-    mask vort3 and account for no-slip / free-slip BC in vort3BC:
       DO j=1-OLy,sNy+OLy
@@ -300,10 +297,9 @@ C-    mask vort3 and account for no-slip / free-slip BC in vort3BC:
       ENDDO
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE vort3(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE vort3bc(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE KE(:,:)      = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE vort3(:,:)   = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE vort3bc(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
       IF (momViscosity) THEN
@@ -325,14 +321,10 @@ C      and mask relative vorticity (free-slip case):
          ENDDO
         ENDDO
        ENDIF
+# ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE h0FacZ(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+# endif
 #endif /* NONLIN_FRSURF */
-
-#ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE h0FacZ(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE hFacZ(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-#endif
 
        CALL MOM_CALC_HDIV(bi,bj,k,2,uFld,vFld,hDiv,myThid)
 
@@ -363,14 +355,10 @@ C-    mask strain and account for no-slip / free-slip BC in strainBC:
        ENDIF
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE hdiv(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE tension(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE strain(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE strainbc(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE hDiv(:,:)     = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE tension(:,:)  = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE strain(:,:)   = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE strainBC(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
 C--    Calculate Lateral Viscosities
@@ -385,8 +373,7 @@ C--    Calculate Lateral Viscosities
        IF ( useVariableVisc ) THEN
 C-     uses vort3BC & strainBC which account for no-slip / free-slip BC
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE KE(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE KE(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
          CALL MOM_CALC_VISC( bi, bj, k,
      O            viscAh_Z, viscAh_D, viscA4_Z, viscA4_D,
@@ -397,21 +384,16 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
 C     These store directive must not be here, if you want to recompute
 C     these viscosity coefficients with a modified viscFacAdj = viscFacInAd
 C     because the store directives intentionally prevent the recomputation.
-CADJ STORE viscAh_Z(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE viscAh_D(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE viscA4_Z(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE viscA4_D(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE viscAh_Z(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE viscAh_D(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE viscA4_Z(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE viscA4_D(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 # endif /* AUTODIFF_ALLOW_VISCFACADJ */
 #endif /* ALLOW_AUTODIFF_TAMC */
        ENDIF
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE hDiv(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE hDiv(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
 C      Calculate del^2 u and del^2 v for bi-harmonic term
@@ -425,14 +407,10 @@ C      Calculate del^2 u and del^2 v for bi-harmonic term
        ENDIF
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE del2u(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE del2v(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE dStar(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE zStar(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE del2u(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE del2v(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE dStar(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE zStar(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
 C---   Calculate dissipation terms for U and V equations
@@ -470,8 +448,7 @@ C     Combine fluxes
         ENDDO
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE fVerUkp(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE fVerUkp(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
 C--   Tendency is minus divergence of the fluxes
@@ -506,18 +483,20 @@ C-     No-slip BCs impose a drag at walls...
 C-    No-slip BCs impose a drag at bottom
        IF ( bottomDragTerms ) THEN
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE KE(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE KE(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
         CALL MOM_U_BOTDRAG_COEFF( bi, bj, k, .TRUE.,
      I                  uFld, vFld, kappaRU, KE,
      O                  cDrag,
      I                  myIter, myThid )
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE cDrag(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+#endif
         DO j=jMin,jMax
          DO i=iMin,iMax
-           gUdiss(i,j) = gUdiss(i,j)
-     &                 - cDrag(i,j)*uFld(i,j)
-     &                 *_recip_hFacW(i,j,k,bi,bj)*recip_drF(k)
+           vF(i,j) = -cDrag(i,j)*uFld(i,j)
+     &             *_recip_hFacW(i,j,k,bi,bj)*recip_drF(k)
+           gUdiss(i,j) = gUdiss(i,j) + vF(i,j)
          ENDDO
         ENDDO
         IF ( useDiagnostics ) THEN
@@ -528,17 +507,24 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
           ENDDO
          ENDDO
         ENDIF
+#if ( defined ALLOW_MOM_TEND_EXTRA_DIAGS && defined ALLOW_DIAGNOSTICS )
+        IF ( botDragDiagIsOn ) THEN
+         CALL DIAGNOSTICS_FILL( vF, 'UBotDrag', k,1,2,bi,bj, myThid )
+        ENDIF
+#endif /* ALLOW_MOM_TEND_EXTRA_DIAGS && ALLOW_DIAGNOSTICS */
        ENDIF
 #ifdef ALLOW_SHELFICE
        IF ( useShelfIce .AND. selectImplicitDrag.EQ.0 ) THEN
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE KE(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE KE(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
         CALL SHELFICE_U_DRAG_COEFF( bi, bj, k, .TRUE.,
      I                  uFld, vFld, kappaRU, KE,
      O                  cDrag,
      I                  myIter, myThid )
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE cDrag(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+#endif
         DO j=jMin,jMax
          DO i=iMin,iMax
            gUdiss(i,j) = gUdiss(i,j)
@@ -546,6 +532,17 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
      &                 *_recip_hFacW(i,j,k,bi,bj)*recip_drF(k)
          ENDDO
         ENDDO
+#if ( defined ALLOW_MOM_TEND_EXTRA_DIAGS && defined ALLOW_DIAGNOSTICS )
+        IF ( shelfDragDiagIsOn ) THEN
+         DO j=jMin,jMax
+          DO i=iMin,iMax
+           vrF(i,j) = -cDrag(i,j)*uFld(i,j)
+     &              *_recip_hFacW(i,j,k,bi,bj)*recip_drF(k)
+          ENDDO
+         ENDDO
+         CALL DIAGNOSTICS_FILL( vrF, 'UShIDrag', k,1,2,bi,bj, myThid )
+        ENDIF
+#endif /* ALLOW_MOM_TEND_EXTRA_DIAGS && ALLOW_DIAGNOSTICS */
        ENDIF
 #endif /* ALLOW_SHELFICE */
 
@@ -562,8 +559,7 @@ C     Combine fluxes -> fVerV
          ENDDO
         ENDDO
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE fVerVkp(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE fVerVkp(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 C--   Tendency is minus divergence of the fluxes
 C     vert.visc.flx is scaled by deepFac2F (deep-atmos) and rhoFac (anelastic)
@@ -597,18 +593,20 @@ C-     No-slip BCs impose a drag at walls...
 C-    No-slip BCs impose a drag at bottom
        IF ( bottomDragTerms ) THEN
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE KE(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE KE(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
         CALL MOM_V_BOTDRAG_COEFF( bi, bj, k, .TRUE.,
      I                  uFld, vFld, kappaRV, KE,
      O                  cDrag,
      I                  myIter, myThid )
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE cDrag(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+#endif
         DO j=jMin,jMax
          DO i=iMin,iMax
-           gvDiss(i,j) = gvDiss(i,j)
-     &                 - cDrag(i,j)*vFld(i,j)
-     &                 *_recip_hFacS(i,j,k,bi,bj)*recip_drF(k)
+           vF(i,j) = -cDrag(i,j)*vFld(i,j)
+     &             *_recip_hFacS(i,j,k,bi,bj)*recip_drF(k)
+           gvDiss(i,j) = gvDiss(i,j) + vF(i,j)
          ENDDO
         ENDDO
         IF ( useDiagnostics ) THEN
@@ -619,17 +617,24 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
           ENDDO
          ENDDO
         ENDIF
+#if ( defined ALLOW_MOM_TEND_EXTRA_DIAGS && defined ALLOW_DIAGNOSTICS )
+        IF ( botDragDiagIsOn ) THEN
+         CALL DIAGNOSTICS_FILL( vF, 'VBotDrag', k,1,2,bi,bj, myThid )
+        ENDIF
+#endif /* ALLOW_MOM_TEND_EXTRA_DIAGS && ALLOW_DIAGNOSTICS */
        ENDIF
 #ifdef ALLOW_SHELFICE
        IF ( useShelfIce .AND. selectImplicitDrag.EQ.0 ) THEN
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE KE(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE KE(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
         CALL SHELFICE_V_DRAG_COEFF( bi, bj, k, .TRUE.,
      I                  uFld, vFld, kappaRV, KE,
      O                  cDrag,
      I                  myIter, myThid )
+#ifdef ALLOW_AUTODIFF_TAMC
+CADJ STORE cDrag(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+#endif
         DO j=jMin,jMax
          DO i=iMin,iMax
            gvDiss(i,j) = gvDiss(i,j)
@@ -637,6 +642,17 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
      &                 *_recip_hFacS(i,j,k,bi,bj)*recip_drF(k)
          ENDDO
         ENDDO
+#if ( defined ALLOW_MOM_TEND_EXTRA_DIAGS && defined ALLOW_DIAGNOSTICS )
+        IF ( shelfDragDiagIsOn ) THEN
+         DO j=jMin,jMax
+          DO i=iMin,iMax
+           vrF(i,j) = -cDrag(i,j)*vFld(i,j)
+     &              *_recip_hFacS(i,j,k,bi,bj)*recip_drF(k)
+          ENDDO
+         ENDDO
+         CALL DIAGNOSTICS_FILL( vrF, 'VShIDrag', k,1,2,bi,bj, myThid )
+        ENDIF
+#endif /* ALLOW_MOM_TEND_EXTRA_DIAGS && ALLOW_DIAGNOSTICS */
        ENDIF
 #endif /* ALLOW_SHELFICE */
 
@@ -654,8 +670,7 @@ C-    calculate absolute vorticity
      &  CALL MOM_CALC_ABSVORT3(bi,bj,k,vort3,omega3,myThid)
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE omega3(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE omega3(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
 C--   Horizontal Coriolis terms
@@ -672,6 +687,14 @@ C- jmc: change it to keep the Coriolis terms when useAbsVorticity=T & momAdvecti
         CALL MOM_VI_V_CORIOLIS(bi,bj,k,selectVortScheme,useJamartMomAdv,
      &                         uFld,omega3,hFacZ,r_hFacZ,
      &                         vCf,myThid)
+#if ( defined ALLOW_GGL90 && defined ALLOW_GGL90_LANGMUIR )
+       ELSEIF ( useLANGMUIR ) THEN
+        CALL GGL90_ADD_STOKESDRIFT(
+     O                 uRes, vRes,
+     I                 uFld, vFld, k, bi, bj, myThid )
+        CALL MOM_VI_CORIOLIS(bi,bj,k,uRes,vRes,hFacZ,r_hFacZ,
+     &                       uCf,vCf,myThid)
+#endif
        ELSE
         CALL MOM_VI_CORIOLIS(bi,bj,k,uFld,vFld,hFacZ,r_hFacZ,
      &                       uCf,vCf,myThid)
@@ -712,10 +735,8 @@ C- jmc: change it to keep the Coriolis terms when useAbsVorticity=T & momAdvecti
       ENDIF
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE ucf(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE vcf(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE ucf(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE vcf(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
       IF (momAdvection) THEN
@@ -772,10 +793,8 @@ C--   Horizontal advection of relative (or absolute) vorticity
        ENDDO
 
 #ifdef ALLOW_AUTODIFF_TAMC
-CADJ STORE ucf(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
-CADJ STORE vcf(:,:) =
-CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
+CADJ STORE ucf(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
+CADJ STORE vcf(:,:) = comlev1_bibj_k, key = kkey, byte = isbyte
 #endif
 
        IF ( writeDiag ) THEN
@@ -793,14 +812,6 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
 #endif /*  ALLOW_MNC  */
        ENDIF
 
-#ifdef ALLOW_TIMEAVE
-       IF (taveFreq.GT.0.) THEN
-         CALL TIMEAVE_CUMUL_1K1T(uZetatave,vCf,deltaTClock,
-     &                           Nr, k, bi, bj, myThid)
-         CALL TIMEAVE_CUMUL_1K1T(vZetatave,uCf,deltaTClock,
-     &                           Nr, k, bi, bj, myThid)
-       ENDIF
-#endif /* ALLOW_TIMEAVE */
 #ifdef ALLOW_DIAGNOSTICS
        IF ( useDiagnostics ) THEN
          CALL DIAGNOSTICS_FILL(uCf,'Um_AdvZ3',k,1,2,bi,bj,myThid)
@@ -810,13 +821,15 @@ CADJ &     comlev1_bibj_k, key = imomkey, byte = isbyte
 
 C--   Vertical shear terms (-w*du/dr & -w*dv/dr)
        IF ( .NOT. momImplVertAdv ) THEN
-        CALL MOM_VI_U_VERTSHEAR(bi,bj,k,uVel,wVel,uCf,myThid)
+        CALL MOM_VI_U_VERTSHEAR( bi, bj, k, deepFacAdv,
+     &                           uVel, wVel, uCf, myThid )
         DO j=jMin,jMax
          DO i=iMin,iMax
           gU(i,j,k,bi,bj) = gU(i,j,k,bi,bj)+uCf(i,j)
          ENDDO
         ENDDO
-        CALL MOM_VI_V_VERTSHEAR(bi,bj,k,vVel,wVel,vCf,myThid)
+        CALL MOM_VI_V_VERTSHEAR( bi, bj, k, deepFacAdv,
+     &                           vVel, wVel, vCf, myThid )
         DO j=jMin,jMax
          DO i=iMin,iMax
           gV(i,j,k,bi,bj) = gV(i,j,k,bi,bj)+vCf(i,j)
@@ -862,14 +875,14 @@ C--   end if momAdvection
       ENDIF
 
 C--   3.D Coriolis term (horizontal momentum, Eastward component: -fprime*w)
-      IF ( use3dCoriolis ) THEN
+      IF ( select3dCoriScheme.GE.1 ) THEN
         CALL MOM_U_CORIOLIS_NH(bi,bj,k,wVel,uCf,myThid)
         DO j=jMin,jMax
          DO i=iMin,iMax
           gU(i,j,k,bi,bj) = gU(i,j,k,bi,bj)+uCf(i,j)
          ENDDO
         ENDDO
-       IF ( usingCurvilinearGrid ) THEN
+       IF ( usingCurvilinearGrid .OR. rotateGrid ) THEN
 C-     presently, non zero angleSinC array only supported with Curvilinear-Grid
         CALL MOM_V_CORIOLIS_NH(bi,bj,k,wVel,vCf,myThid)
         DO j=jMin,jMax
@@ -881,19 +894,25 @@ C-     presently, non zero angleSinC array only supported with Curvilinear-Grid
       ENDIF
 
 C--   Non-Hydrostatic (spherical) metric terms
+#ifdef MOM_USE_OLD_DEEP_VERT_ADV
       IF ( useNHMTerms ) THEN
+#else
+      IF ( useNHMTerms .AND. .NOT.deepAtmosphere ) THEN
+#endif
        CALL MOM_U_METRIC_NH(bi,bj,k,uFld,wVel,uCf,myThid)
-       DO j=jMin,jMax
-        DO i=iMin,iMax
-         gU(i,j,k,bi,bj) = gU(i,j,k,bi,bj)+uCf(i,j)
-        ENDDO
-       ENDDO
        CALL MOM_V_METRIC_NH(bi,bj,k,vFld,wVel,vCf,myThid)
        DO j=jMin,jMax
         DO i=iMin,iMax
-         gV(i,j,k,bi,bj) = gV(i,j,k,bi,bj)+vCf(i,j)
+         gU(i,j,k,bi,bj) = gU(i,j,k,bi,bj) + uCf(i,j)
+         gV(i,j,k,bi,bj) = gV(i,j,k,bi,bj) + vCf(i,j)
         ENDDO
        ENDDO
+#ifdef ALLOW_DIAGNOSTICS
+       IF ( useDiagnostics ) THEN
+        CALL DIAGNOSTICS_FILL( uCf, 'Um_Metr ', k,1,2, bi,bj, myThid )
+        CALL DIAGNOSTICS_FILL( vCf, 'Vm_Metr ', k,1,2, bi,bj, myThid )
+       ENDIF
+#endif /* ALLOW_DIAGNOSTICS */
       ENDIF
 
 C--   Set du/dt & dv/dt on boundaries to zero
