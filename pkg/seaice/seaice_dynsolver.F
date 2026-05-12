@@ -59,15 +59,11 @@ C     === Local variables ===
 C     i,j    :: Loop counters
 C     bi,bj  :: tile counters
       INTEGER i, j, bi, bj
-CMB      , ig, jg
-      _RL phiSurf(1-OLx:sNx+OLx,1-OLy:sNy+OLy)
-      _RL mask_uice, mask_vice
 #ifdef SEAICE_ALLOW_DAMAGE
       _RL fldAtZ
       EXTERNAL fldAtZ
       _RL recip_healingTime, recip_damageTime
 #endif
-#ifdef ALLOW_DIAGNOSTICS
 #ifdef SEAICE_CGRID
 # ifndef ALLOW_AUTODIFF
       _RL mask_uice, mask_vice
@@ -96,7 +92,6 @@ C     TAUY    :: meridional wind stress over seaice at V point
       LOGICAL diag_SIsigma_isOn, diag_SIshear_isOn
       LOGICAL diag_SIenpi_isOn, diag_SIenpot_isOn
       LOGICAL diag_SIpRfric_isOn, diag_SIpSfric_isOn
-#endif /* ALLOW_DIAGNOSTICS */
 #ifdef SEAICE_ALLOW_MEB_SUBTIMESTEPPING
       _RL deltaTdyn0
       INTEGER myIter0
@@ -317,7 +312,6 @@ C--   now add in tilt
          CALL SEAICE_CALC_ICE_STRENGTH( bi, bj, myTime, myIter, myThid )
 
         ENDDO
-        ENDIF
 #ifdef SEAICE_ALLOW_DAMAGE
         IF ( SEAICEupdateDamage ) THEN
          DO j=2-OLy,sNy+OLy
@@ -446,10 +440,7 @@ C     Jacobian-free Newton Krylov solver (Lemieux et al. 2010, 2012)
         ENDIF
 # endif /*  ALLOW_AUTODIFF */
 #endif /* SEAICE_ALLOW_JFNK */
-CML#ifdef SEAICE_ALLOW_DAMAGE
-CML       IF ( SEAICEupdateDamage )
-CML     &      CALL SEAICE_UPDATE_DAMAGE( .TRUE., myTime, myIter, myThid )
-CML#endif /* SEAICE_ALLOW_DAMAGE */
+
 C End of IF (SEAICEuseDYNAMICS ...
 #ifdef SEAICE_ALLOW_MEB_SUBTIMESTEPPING
 CML#ifdef SEAICE_ALLOW_DAMAGE
@@ -503,23 +494,6 @@ c in open water areas (drift of zero thickness ice)
        ENDDO
       ENDIF
 #endif /* SEAICE_ALLOW_CLIPVELS */
-C      DO bj=myByLo(myThid),myByHi(myThid)
-C       DO bi=myBxLo(myThid),myBxHi(myThid)
-C        DO j=1-OLy,sNy+OLy
-C         DO i=1-OLx,sNx+OLx
-C          areaW = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i-1,j,bi,bj))
-C          areaS = 0.5 _d 0 * (AREA(i,j,bi,bj) + AREA(i,j-1,bi,bj))
-C          IF ( areaW .LE. 0. _d 0 ) THEN
-C            uIce(i,j,bi,bj) = 0. _d 0
-C          ENDIF
-C          IF (areaS .LE. 0. _d 0) THEN
-C            vIce(i,j,bi,bj) = 0. _d 0
-C          ENDIF
-C         ENDDO
-C        ENDDO
-C       ENDDO
-C      ENDDO
-#endif /* SEAICE_ALLOW_DYNAMICS */
 
 #if ( defined ALLOW_DIAGNOSTICS && defined SEAICE_CGRID )
 C     diagnostics related to mechanics/dynamics/momentum equations

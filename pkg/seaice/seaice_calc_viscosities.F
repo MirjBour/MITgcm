@@ -124,14 +124,6 @@ C
 #ifdef SEAICE_ALLOW_MEB
         IF ( SEAICEuseMEB ) THEN
          SEAICEmebMu = 0.5 _d 0 /(1. _d 0+SEAICEpoissonRatio)
-C     this may be wrong for two reasons
-C     1. 4->2 (not idea where the "4" came from)?
-C     2. 1/(1-2nu) should be 1/(1-nu) because of 2D plane approximation
-C     make sure that this is consistent with S/R seaice_meb_calc_stress
-CML         poissonFac1 = 4. _d 0*SEAICEpoissonRatio
-CML     &        /(1.-2.*SEAICEpoissonRatio)
-CMB poissonFac = 2. _d 0*SEAICEpoissonRation
-CMB /(1. _d 0 - 2. _d 0*SEAICEpoissonRation)
          poissonFac = 2. _d 0*SEAICEpoissonRatio
      &        /(1. _d 0 - SEAICEpoissonRatio)
          CALL SEAICE_RECIP_RELAXTIME(
@@ -141,7 +133,6 @@ CMB /(1. _d 0 - 2. _d 0*SEAICEpoissonRation)
          DO j=1-OLy,sNy+OLy
           DO i=1-OLx,sNx+OLx
            denom  = 1./(1.+SEAICE_deltaTdyn*recip_rlx(I,J))
-CMB mu = E*SEAICEmebMu
            mu     = press0(i,j,bi,bj) * SEAICEmebMu * SEAICE_deltaTdyn
      &          * denom * HEFFM(I,J,bi,bj)
            zeta (i,j,bi,bj) = mu*(poissonFac + 1. _d 0)
@@ -149,12 +140,12 @@ CMB mu = E*SEAICEmebMu
            press(i,j,bi,bj) = 0. _d 0
           ENDDO
          ENDDO
+C        ENDIF
         ELSE
 #else
         IF (.TRUE.) THEN
 #endif /* SEAICE_ALLOW_MEB */
-#ifdef ALLOW_AUTODIFF_TAMC
-#ifdef ALLOW_AUTODIFF
+# ifdef ALLOW_AUTODIFF
         DO j=1-OLy,sNy+OLy
          DO i=1-OLx,sNx+OLx
           deltaCreg  (i,j) = SEAICE_deltaMin
@@ -162,7 +153,7 @@ CMB mu = E*SEAICEmebMu
           recip_shear(i,j) = 0. _d 0
          ENDDO
         ENDDO
-#endif /* ALLOW_AUTODIFF */
+# endif /* ALLOW_AUTODIFF */
 C     need to do this beforehand for easier vectorization after
 C     TAFization
         IF ( SEAICEetaZmethod .EQ. 0 ) THEN
@@ -196,13 +187,13 @@ C     (and energy conserving)
      &                / SQRT( shearDefSq + smallNbrSq )
 C         recip_shear(i,j) = 1. _d 0 / ( shearDef + smallNbr )
 #else
-# ifdef ALLOW_AUTODIFF
+#ifdef ALLOW_AUTODIFF
 C     avoid sqrt of 0
           shearDef = 0. _d 0
           IF ( shearDefSq .GT. 0. _d 0 ) shearDef = SQRT(shearDefSq)
-# else
+#else
           shearDef = SQRT(shearDefSq)
-# endif /* ALLOW_AUTODIFF */
+#endif /* ALLOW_AUTODIFF */
           recip_shear(i,j) = 1. _d 0 / MAX( ShearDef, smallNbr )
 #endif /* SEAICE_DELTA_SMOOTHREG */
          ENDDO
@@ -492,7 +483,7 @@ C     default elliptical yield curve
            ENDDO
           ENDDO
 #if (defined SEAICE_ALLOW_MCE) || (defined SEAICE_ALLOW_TEM)
-C     end of elliptical yield curve options
+C     end of different ways to calculate eta     
          ENDIF
 #endif /* SEAICE_ALLOW_MCE or SEAICE_ALLOW_TEM */
 C     end of yield curve options
@@ -517,7 +508,6 @@ C     compute eta at Z-points by simple averaging
 C     To control averaging process for MEB
 #ifdef SEAICE_ALLOW_MEB
         IF ( SEAICEuseMEB ) THEN
-C DoubleParameters
          SEAICEmebMu = 0.5 _d 0 /(1. _d 0+SEAICEpoissonRatio)
          poissonFac = 2. _d 0*SEAICEpoissonRatio
      &        /(1. _d 0 - SEAICEpoissonRatio)
@@ -532,22 +522,8 @@ C DoubleParameters
      &          * denom
            zetaZ(i,j,bi,bj) = mu*(poissonFac + 1. _d 0)
            etaZ (i,j,bi,bj) = mu
-CML           maskO = HEFFM(i,j,  bi,bj)*HEFFM(i-1,j,  bi,bj)
-CML     &          *  HEFFM(i,j-1,bi,bj)*HEFFM(i-1,j-1,bi,bj)
-CML           maskI = press0(i,j,  bi,bj)*press0(i-1,j  ,bi,bj)
-CML     &          *  press0(i,j-1,bi,bj)*press0(i-1,j-1,bi,bj)
-CML           IF (maskI .EQ. 0. _d 0 .AND. maskO .GT. 0. _d 0 ) THEN
-CML            zetaZ(i,j,bi,bj) = 0. _d 0
-CML            etaZ (i,j,bi,bj) = 0. _d 0
-CML           ENDIF
           ENDDO
          ENDDO
-c         DO j=1-OLy+1,sNy+OLy-1
-c          DO i=1-OLx+1,sNx+OLx-1
-c           etaZ (i,j,bi,bj) = fldAtZ(eta(:,:,bi,bj),i,j,bi,bj)
-c           zetaZ(i,j,bi,bj) = fldAtZ(zeta(:,:,bi,bj),i,j,bi,bj)
-c          ENDDO
-c         ENDDO
         ENDIF
 #endif /* SEAICE_ALLOW_MEB */
 c
@@ -578,7 +554,6 @@ C     about the no-slip boundary conditions
         ENDDO
        ENDDO
       ENDDO
-
 #endif /* SEAICE_CGRID */
       RETURN
       END

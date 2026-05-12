@@ -146,7 +146,7 @@ C     SEAICE_mon_mnc    :: write monitor to netcdf file
      &     SEAICEuseEVP, SEAICEuseEVPstar, SEAICEuseEVPrev,
      &     SEAICEuseEVPpickup,
      &     SEAICEuseMultiTileSolver,
-     &     SEAICEuseLSR, SEAICEuseKrylov,
+     &     SEAICEuseLSR, SEAICEuseLSRflex, SEAICEuseKrylov,
      &     SEAICEuseJFNK, SEAICEuseIMEX, SEAICEuseBDF2,SEAICEuseMEB,
      &     SEAICEupdateDamage, SEAICEuseNoisyIceStrength,
      &     SEAICEmebNormCorr,SEAICEadvDamage,
@@ -178,7 +178,7 @@ C     SEAICE_mon_mnc    :: write monitor to netcdf file
      &     SEAICEuseEVP, SEAICEuseEVPstar, SEAICEuseEVPrev,
      &     SEAICEuseEVPpickup,
      &     SEAICEuseMultiTileSolver,
-     &     SEAICEuseLSR, SEAICEuseKrylov,
+     &     SEAICEuseLSR, SEAICEuseLSRflex, SEAICEuseKrylov,
      &     SEAICEuseJFNK, SEAICEuseIMEX, SEAICEuseBDF2, SEAICEuseMEB,
      &     SEAICEupdateDamage, SEAICEuseNoisyIceStrength,
      &     SEAICEmebNormCorr, SEAICEadvDamage,
@@ -370,7 +370,8 @@ C
       CHARACTER*(MAX_LEN_FNAM) vCoastLineFile
       COMMON /SEAICE_PARM_C/
      &   AreaFile, HsnowFile, HsaltFile, HeffFile,
-     &   uIceFile, vIceFile, CohesFile, NoisFile, uCoastLineFile, vCoastLineFile
+     &   uIceFile, vIceFile, CohesFile, NoisFile, 
+     &   uCoastLineFile, vCoastLineFile
 
 C--   COMMON /SEAICE_PARM_RL/ Real valued parameters of sea ice model.
 C     SEAICE_deltaTtherm :: Seaice timestep for thermodynamic equations (s)

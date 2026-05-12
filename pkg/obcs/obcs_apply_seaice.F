@@ -57,7 +57,6 @@ C     Set model variables to OB values on Northern Boundary
          DO i=1-OLx,sNx+OLx
           Jobc = OB_Jn(i,bi,bj)
           IF ( Jobc.NE.OB_indexNone ) THEN
-<<<<<<< HEAD
 #if ( defined SEAICE_ALLOW_DAMAGE || defined SEAICE_ALLOW_MEB )
             damage(i,Jobc,bi,bj) = 1.0
             damageZ(i,Jobc,bi,bj) = 1.0
@@ -66,7 +65,6 @@ C     Set model variables to OB values on Northern Boundary
             seaice_sigma12(i,Jobc,bi,bj) = 0.0
             seaice_sigma12C(i,Jobc,bi,bj) = 0.0
 #endif
-=======
            IF ( useSeaiceNeumann ) THEN
 C     Neumann boundary conditions
             HEFF (i,Jobc,bi,bj) = HEFF (i,Jobc-1,bi,bj)
@@ -76,7 +74,6 @@ C     Neumann boundary conditions
             HSALT(i,Jobc,bi,bj) = HSALT(i,Jobc-1,bi,bj)
 #  endif
            ELSE
->>>>>>> upstream/master
             HEFF (i,Jobc,bi,bj) = OBNh (i,bi,bj)
             AREA (i,Jobc,bi,bj) = OBNa (i,bi,bj)
             HSNOW(i,Jobc,bi,bj) = OBNsn(i,bi,bj)

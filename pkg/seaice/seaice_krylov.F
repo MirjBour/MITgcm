@@ -219,7 +219,8 @@ C     the Krylov iteration)
      O      e11, e22, e12,
      I      0, myTime, myIter, myThid )
        CALL SEAICE_CALC_VISCOSITIES(
-     I      e11, e22, e12, SEAICE_zMin, SEAICE_zMax, HEFFM, press0, tensileStrFac,
+     I      e11, e22, e12, SEAICE_zMin, SEAICE_zMax, HEFFM, press0, 
+     I      tensileStrFac,
 #ifdef SEAICE_ALLOW_DAMAGE
      I      damage, damageZ, press0Z,
 #endif /* SEAICE_ALLOW_DAMAGE */

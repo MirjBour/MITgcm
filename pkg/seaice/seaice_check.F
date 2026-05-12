@@ -882,7 +882,6 @@ C--   Check Overlap size:
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
        ENDIF
-<<<<<<< HEAD
        IF ( SEAICEuseEVP .AND. SEAICEuseMEB ) THEN
         WRITE(msgBuf,'(A)') 'SEAICE_CHECK: SEAICEuseMEB cannot be'
         CALL PRINT_ERROR( msgBuf, myThid )
@@ -892,10 +891,7 @@ C--   Check Overlap size:
         errCount = errCount + 1
       ENDIF
 # endif
-=======
 # endif /* SEAICE_ALLOW_EVP */
->>>>>>> upstream/master
-
 # ifdef SEAICE_ALLOW_EVP
        IF ( SEAICEuseEVP .AND. (SEAICE_eccfr.NE.SEAICE_eccen) ) THEN
         WRITE(msgBuf,'(2A)') 'SEAICE_CHECK: SEAICEuseEVP = .TRUE., ',
@@ -928,8 +924,6 @@ C--   Check Overlap size:
         errCount = errCount + 1
        ENDIF
 # endif /* SEAICE_ALLOW_EVP */
-
-<<<<<<< HEAD
 # ifdef SEAICE_ALLOW_NOISEFILE
        IF ( SEAICEuseNoisyIceStrength .AND. SEAICEuseMEB ) THEN
         WRITE(msgBuf,'(2A)')
@@ -955,8 +949,7 @@ C--   Check Overlap size:
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
        ENDIF
-# endif
-=======
+# endif /* SEAICE_ALLOW_NOISEFILE */
 #ifndef SEAICE_ALLOW_LSR_FLEX
       IF ( SEAICEuseLSRflex ) THEN
        WRITE(msgBuf,'(A)')
@@ -965,7 +958,6 @@ C--   Check Overlap size:
        errCount = errCount + 1
       ENDIF
 #endif
->>>>>>> upstream/master
 C     SEAICEuseDynamics
       ENDIF
 #endif /* SEAICE_CGRID */

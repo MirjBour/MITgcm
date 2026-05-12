@@ -225,7 +225,7 @@ C
        DO j=jMin,jMax
         DO i=iMin,iMax
          press0(i,j,bi,bj)=press0(i,j,bi,bj)*maskInC(I,J,bi,bj)
-         ZMIN(I,J,bi,bj)  =  ZMIN(I,J,bi,bj)*maskInC(I,J,bi,bj)
+         SEAICE_zMin(I,J,bi,bj) = SEAICE_zetaMin
         ENDDO
        ENDDO
       ENDIF

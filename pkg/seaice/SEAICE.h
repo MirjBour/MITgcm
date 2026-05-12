@@ -41,7 +41,7 @@ C     SIMaskU/V :: land-sea mask at U/V-points (copies of maskW/S(k=kSrf))
       COMMON/ARRAYMETRIC/  k1AtC, k2AtC
       _RS k1AtC      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RS k2AtC      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#endif
+#endif /* SEAICE_CGRID SEAICE_BGRID_DYNAMICS*/
 
 #ifdef SEAICE_CGRID
       COMMON/ARRAYC/ seaiceMaskU, seaiceMaskV
@@ -80,12 +80,6 @@ C--   Dynamical variables
       COMMON/SEAICE_DYNVARS_NOISE/ NOISE
       _RL NOISE     (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
 #endif
-
-C     uIceC :: average of UICE between last two time steps
-C     vIceC :: average of VICE between last two time steps
-      COMMON/SEAICE_DYNVARS_3/
-     &     ETA,etaZ,ZETA,zetaZ,PRESS, e11, e22, e12, deltaC,
-     &     FORCEX,FORCEY,
 C     DWATN         :: (linear) ice-ocean drag coefficient
 C                      ( units of [rho|u|] = kg/m^2/s )
 C     u/vIceNm1     :: sea ice drift velocities of previous timestep (m/s)
@@ -120,9 +114,9 @@ C     stressDivergenceX/Y :: div of (vert. integr.) stress tensor (N/m^2)
      &     stressDivergenceX, stressDivergenceY
       _RL stressDivergenceX(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL stressDivergenceY(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-# ifdef SEAICE_ALLOW_EVP
-C--   Additional fields needed by the EVP solver:
-C     (vertically integrated) stress tensor, with diagonal terms sigma11/22
+# if defined SEAICE_ALLOW_MEB || defined SEAICE_ALLOW_EVP
+C--   Additional fields needed by the EVP and MEB solver:
+C     (vertically integrated) stress tensor
 C     seaice_sigma1  :: sigma11+sigma22, defined at C-points   (N/m)
 C     seaice_sigma2  :: sigma11-sigma22, defined at C-points   (N/m)
 C     seaice_sigma12 :: off-diagonal term, defined at Z-points (N/m)
@@ -131,8 +125,8 @@ C     seaice_sigma12 :: off-diagonal term, defined at Z-points (N/m)
       _RL seaice_sigma1    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL seaice_sigma2    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL seaice_sigma12   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-# endif /* SEAICE_ALLOW_EVP */
-#endif
+# endif /* SEAICE_ALLOW_EVP or SEAICE_ALLOW_MEB */
+#endif /* SEAICE_CGRID */
 
 #if ( defined SEAICE_CGRID || defined SEAICE_BGRID_DYNAMICS )
 C     ETA,  etaZ    :: shear viscosity as C-points, at Z-points (N s/m = kg/s)
@@ -147,7 +141,7 @@ C     tensileStrFac :: factor k to compute the maximal tensile stress k*PRESS0
       COMMON/SEAICE_DYNVARS_3/
      &     ETA, etaZ, ZETA, zetaZ, PRESS, tensileStrFac,
      &     e11, e22, e12, deltaC,
-     &     FORCEX,FORCEY
+     &     FORCEX, FORCEY
 
       _RL ETA        (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL etaZ       (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
@@ -169,13 +163,15 @@ C     PRESS0        :: maximal compressive stress/strength (N/m)
 C     FORCEX/Y0     :: external momentum forcing fields (part of FORCEX/Y)
 C     SEAICE_zMax/zMin :: maximum/minimum bulk viscosities
       COMMON/SEAICE_DYNVARS_4/
-     &     PRESS0, FORCEX0, FORCEY0, SEAICE_zMax, SEAICE_zMin
+     &     PRESS0, FORCEX0, FORCEY0, SEAICE_zMax, SEAICE_zMin,
+     &     PRESS0Z
       _RL PRESS0     (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
+      _RL PRESS0Z    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL FORCEX0    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL FORCEY0    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL SEAICE_zMax(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL SEAICE_zMin(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#endif
+#endif /*SEAICE_CGRID SEAICE_BGRID_DYNAMICS*/
 
 #ifdef SEAICE_CGRID
 C     seaiceMassC/U/V :: mass (ice+snow) at C/U/V-points ( kg/m^2 )
@@ -190,22 +186,8 @@ C     u/vice_fd :: free drift velocities (m/s)
      &     uice_fd, vice_fd
       _RL uice_fd   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
       _RL vice_fd   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-# endif
+# endif /*SEAICE_ALLOW_FREEDRIFT*/
 
-      COMMON/SEAICE_DYNVARS_4/
-     &     DWATN, PRESS0, FORCEX0, FORCEY0, ZMAX, ZMIN, tensileStrFac,
-     &     PRESS0Z
-      _RL DWATN      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL PRESS0     (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL PRESS0Z    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL FORCEX0    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL FORCEY0    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL ZMAX       (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL ZMIN       (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-C     factor k to compute the maximal tensile stress from k*PRESS0,
-C     in analogy to the maximal compressive stress PRESS0
-      _RL tensileStrFac(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#ifdef SEAICE_ALLOW_BOTTOMDRAG
 # ifdef SEAICE_ALLOW_BOTTOMDRAG
 C     CbobC :: (linear) bottom drag coefficient for basals stress param.
       COMMON/SEAICE_BOTTOMDRAG/ CbotC
@@ -290,6 +272,7 @@ C--   KGEO    Level used as a proxy for geostrophic velocity.
      & usedCorr  
       _RL usedCorr (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
 #endif /* SEAICE_ALLOW_DAMAGE */
+
       COMMON/SEAICE_REG_NEG/d_HEFFbyNEG,d_HSNWbyNEG
 C     The change of mean ice thickness due to out-of-bounds values following
 C     sea ice dynamics and advection
@@ -323,82 +306,6 @@ C                   that is, ice due to precipitation or snow
 C     TICES :: Seaice/snow surface temperature for each category
       COMMON/MULTICATEGORY/TICES
       _RL TICES      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nITD,nSx,nSy)
-
-#if (defined (SEAICE_CGRID) && defined (SEAICE_ALLOW_FREEDRIFT))
-      COMMON /SEAICE_FD_FIELDS/
-     &     uice_fd, vice_fd
-      _RL uice_fd   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL vice_fd   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#endif
-
-#ifdef SEAICE_CGRID
-#if defined SEAICE_ALLOW_MEB || defined SEAICE_ALLOW_EVP
-C
-C     additional fields needed by the EVP solver and/or MEB rheology
-C
-C     seaice_sigma1  - sigma11+sigma22, defined at C-points
-C     seaice_sigma2  - sigma11-sigma22, defined at C-points
-C     seaice_sigma12 - off-diagonal term, defined at Z-points
-      COMMON /SEAICE_EVP_FIELDS/
-     &     seaice_sigma1, seaice_sigma2, seaice_sigma12
-      _RL seaice_sigma1    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL seaice_sigma2    (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL seaice_sigma12   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#endif /* SEAICE_ALLOW_EVP or SEAICE_ALLOW_MEB */
-C     stressDivergenceX/Y - divergence of stress tensor
-      COMMON /SEAICE_STRESSDIV/
-     &     stressDivergenceX, stressDivergenceY
-      _RL stressDivergenceX(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL stressDivergenceY(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#endif /* SEAICE_CGRID */
-
-#ifndef SEAICE_CGRID
-      COMMON/WIND_STRESS_OCE/WINDX,WINDY
-C     WINDX  - zonal      wind stress over water at C points
-C     WINDY  - meridional wind stress over water at C points
-      _RL WINDX      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL WINDY      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-
-      COMMON/GWATXY/GWATX,GWATY
-      _RL GWATX      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL GWATY      (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-
-C--   KGEO    Level used as a proxy for geostrophic velocity.
-      COMMON/SEAICE_KGEO/KGEO
-      INTEGER KGEO   (1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-#endif
-
-#ifdef ALLOW_SEAICE_COST_EXPORT
-      _RL uHeffExportCell(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL vHeffExportCell(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      _RL icevolMeanCell(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy)
-      COMMON /SEAICE_COST_EXPORT_R/
-     &       uHeffExportCell, vHeffExportCell,
-     &       icevolMeanCell
-#endif
-
-C     SWFracB :: fraction of surface Short-Wave radiation reaching
-C                the bottom of ocean surface level
-      _RL SWFracB
-      COMMON /SEAICE_SW_R/
-     &       SWFracB
-
-#if (defined SEAICE_ALLOW_JFNK) || (defined SEAICE_ALLOW_KRYLOV)
-C     diagnostics for the JFNK and Krylov solver
-      INTEGER totalNewtonIters
-      INTEGER totalNewtonFails
-      INTEGER totalKrylovIters
-      INTEGER totalKrylovFails
-      INTEGER totalJFNKtimeSteps
-      COMMON /SEAICE_SOLVER_I/
-     &     totalNewtonIters, totalNewtonFails,
-     &     totalKrylovIters, totalKrylovFails,
-     &     totalJFNKtimeSteps
-      INTEGER nVec
-      PARAMETER ( nVec=2*sNx*sNy )
-      _RL scalarProductMetric( nVec, 1, nSx, nSy )
-      COMMON /SEAICE_KRYLOV_RL/ scalarProductMetric
-#endif /* SEAICE_ALLOW_JFNK or SEAICE_ALLOW_KRYLOV */
 
 CEH3 ;;; Local Variables: ***
 CEH3 ;;; mode:fortran ***

@@ -102,15 +102,11 @@ C     viscosities are required
      O     e11, e22, e12,
      I     krylovIter, myTime, myIter, myThid )
       CALL SEAICE_CALC_VISCOSITIES(
-<<<<<<< HEAD
-     I     e11, e22, e12, zMin, zMax, HEFFM, press0, tensileStrFac,
+     I     e11, e22, e12, SEAICE_zMin, SEAICE_zMax, HEFFM, press0,
+     I     tensileStrFac,
 #ifdef SEAICE_ALLOW_DAMAGE
      I     damage, damageZ, press0Z,
 #endif /* SEAICE_ALLOW_DAMAGE */
-=======
-     I     e11, e22, e12, SEAICE_zMin, SEAICE_zMax, HEFFM, press0,
-     I     tensileStrFac,
->>>>>>> upstream/master
      O     eta, etaZ, zeta, zetaZ, press, deltaC,
      I     krylovIter, myTime, myIter, myThid )
 
