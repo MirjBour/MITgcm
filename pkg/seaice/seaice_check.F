@@ -890,7 +890,6 @@ C--   Check Overlap size:
         CALL PRINT_ERROR( msgBuf, myThid )
         errCount = errCount + 1
       ENDIF
-# endif
 # endif /* SEAICE_ALLOW_EVP */
 # ifdef SEAICE_ALLOW_EVP
        IF ( SEAICEuseEVP .AND. (SEAICE_eccfr.NE.SEAICE_eccen) ) THEN
@@ -1038,16 +1037,16 @@ C     SEAICEuseDynamics
        errCount = errCount + 1
       ENDIF
 #endif
-#if !defined(SEAICE_ALLOW_MEB) || !defined(SEAICE_CGRID)
-      IF ( SEAICEuseMEB ) THEN
-       WRITE(msgBuf,'(A)') 'SEAICE_CHECK: SEAICEuseMEB requires that'
-       CALL PRINT_ERROR( msgBuf, myThid )
-       WRITE(msgBuf,'(A)')
-     &  'SEAICE_CHECK: SEAICE_ALLOW_MEB and SEAICE_CGRID are defined'
-       CALL PRINT_ERROR( msgBuf, myThid )
-       errCount = errCount + 1
-      ENDIF
-#endif
+C#if !defined(SEAICE_ALLOW_MEB) || !defined(SEAICE_CGRID)
+C      IF ( SEAICEuseMEB ) THEN
+C       WRITE(msgBuf,'(A)') 'SEAICE_CHECK: SEAICEuseMEB requires that'
+C       CALL PRINT_ERROR( msgBuf, myThid )
+C       WRITE(msgBuf,'(A)')
+C     &  'SEAICE_CHECK: SEAICE_ALLOW_MEB and SEAICE_CGRID are defined'
+C       CALL PRINT_ERROR( msgBuf, myThid )
+C       errCount = errCount + 1
+C      ENDIF
+C#endif
 #ifdef SEAICE_ALLOW_MEB
 # ifndef SEAICE_ALLOW_DAMAGE
       WRITE(msgBuf,'(A)') 'SEAICE_CHECK: SEAICE_ALLOW_MEB requires'
