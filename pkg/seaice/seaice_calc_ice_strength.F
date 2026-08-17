@@ -220,6 +220,7 @@ C
        ENDDO
       ENDIF
 #endif /* SEAICE_ALLOW_DAMAGE */
+CMB There is a problem with this line running VP. For MEB?
 #ifdef ALLOW_OBCS
       IF ( useOBCS ) THEN
        DO j=jMin,jMax
